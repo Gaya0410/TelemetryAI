@@ -436,6 +436,11 @@ h3 {
   color: #dbeafe;
 }
 
+.quick-prompts button.active-prompt {
+  background: #fff;
+  color: #1d4ed8;
+}
+
 .copilot-sidecar {
   display: grid;
   gap: 14px;

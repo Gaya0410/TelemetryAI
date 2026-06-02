@@ -4,15 +4,121 @@ import { sampleTelemetry } from './data/sampleTelemetry'
 import './App.css'
 
 const demoQuestions = [
-  'What changed recently?',
-  'What caused failures today?',
+  'What is wrong with my system?',
+  'Why are errors increasing?',
   'Which region is impacted?',
   'Show slow APIs.',
-  'Why did checkout failures increase after the latest deployment?',
-  'Which custom dimensions explain the incident blast radius?',
-  'Show the user-wise and time-wise failure pattern.',
-  'Generate an RCA for the checkout latency spike.',
 ]
+
+type DemoQuestion = (typeof demoQuestions)[number]
+
+type CopilotResponse = {
+  summary: string
+  finding: string
+  rootCause: string
+  evidence: string
+  nextAction: string
+  kql: string
+  findings: string[]
+}
+
+const copilotResponses: Record<DemoQuestion, CopilotResponse> = {
+  'What is wrong with my system?': {
+    summary:
+      'Checkout is unhealthy after the latest deployment. Failures and latency increased on POST /checkout, concentrated on ProviderB traffic in West Europe.',
+    finding: 'Checkout failures increased after deployment',
+    rootCause: 'ProviderB payment timeout',
+    evidence: '504s + dependency failures + West Europe + provider-routing-v2',
+    nextAction: 'Disable provider-routing-v2 and fail over to ProviderA',
+    kql: `requests
+| where operation_Name == "POST /checkout"
+| summarize requests=count(),
+    failures=countif(success == false),
+    failureRate=round(100.0 * countif(success == false) / count(), 2),
+    avgDurationMs=round(avg(duration), 0)
+  by tostring(customDimensions.buildVersion),
+     tostring(customDimensions.region),
+     tostring(customDimensions.paymentProvider),
+     tostring(customDimensions.featureFlag)
+| order by failureRate desc`,
+    findings: [
+      'Failures start after build 2026.06.01.4.',
+      'Failing requests are concentrated in West Europe.',
+      'ProviderB dependency calls show GatewayTimeout.',
+      'provider-routing-v2 is present on impacted requests.',
+    ],
+  },
+  'Why are errors increasing?': {
+    summary:
+      'Errors are increasing because ProviderB authorization calls are timing out. The failures surface as HTTP 504 responses after retry budget exhaustion.',
+    finding: 'HTTP 504 errors increased',
+    rootCause: 'ProviderB.AuthorizePayment timeout',
+    evidence: 'GatewayTimeout dependency rows + exceptions + retry exhaustion',
+    nextAction: 'Route payment authorization away from ProviderB',
+    kql: `dependencies
+| where target == "ProviderB.AuthorizePayment"
+| summarize calls=count(),
+    failures=countif(success == false),
+    avgDurationMs=round(avg(duration), 0)
+  by resultCode,
+     tostring(customDimensions.region),
+     tostring(customDimensions.buildVersion)
+| order by failures desc`,
+    findings: [
+      'ProviderB dependency failures align with checkout 504s.',
+      'Exceptions mention PaymentAuthorizationTimeout.',
+      'RetryBudgetExhausted appears after repeated dependency timeouts.',
+      'ProviderA traffic remains comparatively healthy.',
+    ],
+  },
+  'Which region is impacted?': {
+    summary:
+      'The incident is not global. Impact is concentrated in West Europe, especially tenants routed to ProviderB after the provider-routing-v2 rollout.',
+    finding: 'West Europe is the primary impacted region',
+    rootCause: 'Regional ProviderB routing after rollout',
+    evidence: 'tenantId + region + paymentProvider custom dimensions',
+    nextAction: 'Disable ProviderB route for West Europe tenants',
+    kql: `requests
+| where operation_Name == "POST /checkout"
+| summarize requests=count(),
+    failures=countif(success == false),
+    failureRate=round(100.0 * countif(success == false) / count(), 2),
+    avgDurationMs=round(avg(duration), 0)
+  by tostring(customDimensions.tenantId),
+     tostring(customDimensions.region),
+     tostring(customDimensions.paymentProvider)
+| order by failureRate desc`,
+    findings: [
+      'West Europe has the highest checkout failure concentration.',
+      'contoso-retail and adatum-store appear in the impacted tenant set.',
+      'North Europe ProviderA traffic does not show the same failure pattern.',
+      'The blast radius is limited to ProviderB-routed checkout traffic.',
+    ],
+  },
+  'Show slow APIs.': {
+    summary:
+      'POST /checkout is the slow API. Its latency moved from normal sub-second behavior to sustained 1.2s-1.6s requests after deployment.',
+    finding: 'POST /checkout latency spiked',
+    rootCause: 'Slow ProviderB downstream authorization',
+    evidence: 'durationMs increase + dependency timeout + post-deployment timing',
+    nextAction: 'Add adaptive alert on p95 checkout latency by provider',
+    kql: `requests
+| summarize requests=count(),
+    avgDurationMs=round(avg(duration), 0),
+    p95DurationMs=percentile(duration, 95),
+    failures=countif(success == false)
+  by operation_Name,
+     bin(timestamp, 15m),
+     tostring(customDimensions.buildVersion)
+| order by p95DurationMs desc`,
+    findings: [
+      'POST /checkout is slower than the other sampled operations.',
+      'Latency spike begins after deployment rel-4821.',
+      'Slow requests correlate with ProviderB dependency calls.',
+      'A p95 latency alert by provider would catch this earlier.',
+    ],
+  },
+}
 
 const incidentTimeline = [
   {
@@ -103,6 +209,7 @@ function BarChart({
 
 function App() {
   const [question, setQuestion] = useState(demoQuestions[0])
+  const [activeQuestion, setActiveQuestion] = useState<DemoQuestion>(demoQuestions[0])
   const [connectionMode, setConnectionMode] = useState<'sample' | 'azure'>('sample')
   const [workspaceId, setWorkspaceId] = useState('')
   const [timeRange, setTimeRange] = useState<'1h' | '24h' | '7d'>('24h')
@@ -114,10 +221,45 @@ function App() {
   const [selectedDimensionKey, setSelectedDimensionKey] = useState('buildVersion')
   const schema = useMemo(() => discoverSchema(sampleTelemetry), [])
   const analysis = useMemo(() => analyzeTelemetry(sampleTelemetry, question), [question])
+  const copilotAnswer = copilotResponses[activeQuestion]
   const selectedTable = schema.tables.find((table) => table.name === selectedTableName) ?? schema.tables[0]
   const selectedDimension =
     schema.customDimensions.find((dimension) => dimension.key === selectedDimensionKey) ??
     schema.customDimensions[0]
+
+  function chooseQuestion(nextQuestion: DemoQuestion) {
+    setQuestion(nextQuestion)
+  }
+
+  function askCopilot() {
+    const normalizedQuestion = question.trim().toLowerCase()
+    const matchingQuestion = demoQuestions.find(
+      (demoQuestion) => demoQuestion.toLowerCase() === normalizedQuestion,
+    )
+
+    if (matchingQuestion) {
+      setActiveQuestion(matchingQuestion)
+      setQuestion(matchingQuestion)
+      return
+    }
+
+    if (normalizedQuestion.includes('error')) {
+      setActiveQuestion('Why are errors increasing?')
+      return
+    }
+
+    if (normalizedQuestion.includes('region') || normalizedQuestion.includes('user')) {
+      setActiveQuestion('Which region is impacted?')
+      return
+    }
+
+    if (normalizedQuestion.includes('slow') || normalizedQuestion.includes('latency')) {
+      setActiveQuestion('Show slow APIs.')
+      return
+    }
+
+    setActiveQuestion('What is wrong with my system?')
+  }
 
   async function testBackend() {
     setAzureStatus('Checking Telemetry Copilot API...')
@@ -301,35 +443,40 @@ function App() {
                 rows={2}
                 placeholder="Ask anything about your telemetry..."
               />
-              <button type="button" onClick={() => setQuestion(question.trim() || demoQuestions[0])}>
+              <button type="button" onClick={askCopilot}>
                 Ask Copilot
               </button>
             </div>
             <div className="chat-message assistant-message answer-message">
               <span>Telemetry Copilot answer</span>
-              <p>{analysis.summary}</p>
+              <p>{copilotAnswer.summary}</p>
               <div className="answer-card-grid">
                 <article>
                   <small>Finding</small>
-                  <strong>Checkout failures increased</strong>
+                  <strong>{copilotAnswer.finding}</strong>
                 </article>
                 <article>
                   <small>Root cause</small>
-                  <strong>ProviderB timeout</strong>
+                  <strong>{copilotAnswer.rootCause}</strong>
                 </article>
                 <article>
                   <small>Evidence</small>
-                  <strong>504s + West Europe + feature flag</strong>
+                  <strong>{copilotAnswer.evidence}</strong>
                 </article>
                 <article>
                   <small>Next action</small>
-                  <strong>Disable provider-routing-v2</strong>
+                  <strong>{copilotAnswer.nextAction}</strong>
                 </article>
               </div>
             </div>
             <div className="quick-prompts">
-              {demoQuestions.slice(0, 5).map((demoQuestion) => (
-                <button key={demoQuestion} type="button" onClick={() => setQuestion(demoQuestion)}>
+              {demoQuestions.map((demoQuestion) => (
+                <button
+                  key={demoQuestion}
+                  type="button"
+                  className={activeQuestion === demoQuestion ? 'active-prompt' : ''}
+                  onClick={() => chooseQuestion(demoQuestion)}
+                >
                   {demoQuestion}
                 </button>
               ))}
@@ -347,9 +494,17 @@ function App() {
                 <li>✓ Generated RCA with 87% confidence</li>
               </ul>
             </div>
+            <div className="reasoning-card">
+              <span>Evidence for this answer</span>
+              <ul>
+                {copilotAnswer.findings.map((finding) => (
+                  <li key={finding}>✓ {finding}</li>
+                ))}
+              </ul>
+            </div>
             <details className="kql-details">
               <summary>View generated KQL</summary>
-              <pre>{analysis.generatedKql}</pre>
+              <pre>{copilotAnswer.kql}</pre>
             </details>
             <a className="rca-link-button" href="#rca">Open full RCA</a>
           </aside>
@@ -465,7 +620,7 @@ function App() {
           </a>
           <a href="#nl-kql">
             <strong>2. Natural language to KQL</strong>
-            <span>Click a question or type your own; generated KQL appears beside the answer.</span>
+            <span>Pick a suggested question, ask Copilot, and inspect generated KQL.</span>
           </a>
           <a href="#breakdowns">
             <strong>3. User/time insights</strong>
