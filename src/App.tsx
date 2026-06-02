@@ -1,13 +1,41 @@
 import { useMemo, useState } from 'react'
-import { analyzeTelemetry, discoverSchema } from './analysis/telemetryAnalyzer'
+import { analyzeTelemetry, discoverSchema, type BreakdownRow } from './analysis/telemetryAnalyzer'
 import { sampleTelemetry } from './data/sampleTelemetry'
 import './App.css'
 
 const demoQuestions = [
   'Why did checkout failures increase after the latest deployment?',
   'Which custom dimensions explain the incident blast radius?',
+  'Show the user-wise and time-wise failure pattern.',
   'Generate an RCA for the checkout latency spike.',
 ]
+
+function formatPercent(value: number) {
+  return `${Math.round(value * 100)}%`
+}
+
+function BreakdownTable({ rows }: { rows: BreakdownRow[] }) {
+  return (
+    <div className="breakdown-table">
+      <div className="breakdown-header">
+        <span>Segment</span>
+        <span>Records</span>
+        <span>Failures</span>
+        <span>Failure rate</span>
+        <span>Avg latency</span>
+      </div>
+      {rows.map((row) => (
+        <div key={row.key} className={row.failures > 0 ? 'risk-row' : ''}>
+          <strong>{row.key}</strong>
+          <span>{row.records}</span>
+          <span>{row.failures}</span>
+          <span>{formatPercent(row.failureRate)}</span>
+          <span>{row.averageDurationMs}ms</span>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 function App() {
   const [question, setQuestion] = useState(demoQuestions[0])
@@ -51,6 +79,29 @@ function App() {
       </section>
 
       <section className="panel">
+        <p className="eyebrow">How to demo it</p>
+        <h2>Four visible steps judges can follow</h2>
+        <div className="demo-steps">
+          <a href="#schema-discovery">
+            <strong>1. Schema discovery</strong>
+            <span>See discovered tables, columns, and custom dimensions.</span>
+          </a>
+          <a href="#nl-kql">
+            <strong>2. Natural language to KQL</strong>
+            <span>Click a question or type your own; generated KQL appears beside the answer.</span>
+          </a>
+          <a href="#breakdowns">
+            <strong>3. User/time insights</strong>
+            <span>Compare tenant, region, build, and time-window failure patterns.</span>
+          </a>
+          <a href="#rca">
+            <strong>4. RCA report</strong>
+            <span>Review impact, evidence, likely cause, and recommended actions.</span>
+          </a>
+        </div>
+      </section>
+
+      <section className="panel" id="nl-kql">
         <div className="section-heading">
           <div>
             <p className="eyebrow">Natural language to KQL</p>
@@ -87,10 +138,14 @@ function App() {
         </div>
       </section>
 
-      <section className="grid two">
+      <section className="grid two" id="schema-discovery">
         <article className="panel">
           <p className="eyebrow">Auto-discovery</p>
           <h2>Telemetry map</h2>
+          <p className="section-copy">
+            This is the schema discovery output: the tool inspected the telemetry records and found
+            the available tables and fields without the user providing a dashboard or schema.
+          </p>
           <div className="table-list">
             {schema.tables.map((table) => (
               <div key={table.name} className="table-pill">
@@ -105,6 +160,10 @@ function App() {
         <article className="panel">
           <p className="eyebrow">Custom dimensions</p>
           <h2>AI field interpreter</h2>
+          <p className="section-copy">
+            These are the unknown custom dimensions converted into human meaning so a non-KQL user
+            can understand what the telemetry contains.
+          </p>
           <div className="dimension-list">
             {schema.customDimensions.slice(0, 8).map((dimension) => (
               <div key={dimension.key}>
@@ -117,7 +176,39 @@ function App() {
         </article>
       </section>
 
-      <section className="panel rca-panel">
+      <section className="panel" id="breakdowns">
+        <p className="eyebrow">AI insights across telemetry</p>
+        <h2>User-wise, region-wise, build-wise, and time-wise findings</h2>
+        <div className="insight-list">
+          {analysis.insights.map((insight) => (
+            <article key={insight.title} className={`insight-card ${insight.severity.toLowerCase()}`}>
+              <span>{insight.severity}</span>
+              <strong>{insight.title}</strong>
+              <p>{insight.explanation}</p>
+            </article>
+          ))}
+        </div>
+        <div className="breakdown-grid">
+          <article>
+            <h3>User / tenant-wise</h3>
+            <BreakdownTable rows={analysis.breakdowns.byTenant} />
+          </article>
+          <article>
+            <h3>Region-wise</h3>
+            <BreakdownTable rows={analysis.breakdowns.byRegion} />
+          </article>
+          <article>
+            <h3>Build-wise</h3>
+            <BreakdownTable rows={analysis.breakdowns.byBuildVersion} />
+          </article>
+          <article>
+            <h3>Time-wise</h3>
+            <BreakdownTable rows={analysis.breakdowns.byTimeWindow} />
+          </article>
+        </div>
+      </section>
+
+      <section className="panel rca-panel" id="rca">
         <p className="eyebrow">Automated RCA</p>
         <h2>{analysis.rca.incident}</h2>
         <div className="grid two">

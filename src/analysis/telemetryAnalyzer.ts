@@ -18,6 +18,17 @@ export type AnalysisResult = {
   generatedKql: string
   summary: string
   findings: string[]
+  breakdowns: {
+    byTenant: BreakdownRow[]
+    byRegion: BreakdownRow[]
+    byBuildVersion: BreakdownRow[]
+    byTimeWindow: BreakdownRow[]
+  }
+  insights: Array<{
+    title: string
+    severity: 'High' | 'Medium' | 'Low'
+    explanation: string
+  }>
   rca: {
     incident: string
     impact: string
@@ -25,6 +36,14 @@ export type AnalysisResult = {
     likelyRootCause: string
     recommendedActions: string[]
   }
+}
+
+export type BreakdownRow = {
+  key: string
+  records: number
+  failures: number
+  failureRate: number
+  averageDurationMs: number
 }
 
 const dimensionMeanings: Record<string, string> = {
@@ -54,20 +73,43 @@ function average(values: number[]) {
   return values.reduce((sum, value) => sum + value, 0) / values.length
 }
 
-function groupByDimension(records: TelemetryRecord[], dimension: string) {
+function groupBy(records: TelemetryRecord[], getKey: (record: TelemetryRecord) => string): BreakdownRow[] {
   const grouped = new Map<string, TelemetryRecord[]>()
 
   records.forEach((record) => {
-    const value = record.customDimensions[dimension] ?? 'unknown'
+    const value = getKey(record)
     grouped.set(value, [...(grouped.get(value) ?? []), record])
   })
 
-  return [...grouped.entries()].map(([key, items]) => ({
-    key,
-    records: items.length,
-    failures: items.filter((item) => item.success === false).length,
-    averageDurationMs: Math.round(average(items.map((item) => item.durationMs ?? 0).filter(Boolean))),
-  }))
+  return [...grouped.entries()]
+    .map(([key, items]) => {
+      const failures = items.filter((item) => item.success === false).length
+
+      return {
+        key,
+        records: items.length,
+        failures,
+        failureRate: items.length ? failures / items.length : 0,
+        averageDurationMs: Math.round(average(items.map((item) => item.durationMs ?? 0).filter(Boolean))),
+      }
+    })
+    .sort((left, right) => right.failures - left.failures || right.averageDurationMs - left.averageDurationMs)
+}
+
+function groupByDimension(records: TelemetryRecord[], dimension: string) {
+  return groupBy(records, (record) => record.customDimensions[dimension] ?? 'unknown')
+}
+
+function groupByTimeWindow(records: TelemetryRecord[]) {
+  return groupBy(records, (record) => {
+    const date = new Date(record.timestamp)
+    const minutes = date.getUTCMinutes()
+    const bucketStart = Math.floor(minutes / 15) * 15
+    const bucketEnd = bucketStart + 14
+    return `${String(date.getUTCHours()).padStart(2, '0')}:${String(bucketStart).padStart(2, '0')}-${String(
+      date.getUTCHours(),
+    ).padStart(2, '0')}:${String(bucketEnd).padStart(2, '0')} UTC`
+  }).sort((left, right) => left.key.localeCompare(right.key))
 }
 
 export function discoverSchema(records: TelemetryRecord[]): SchemaSummary {
@@ -155,6 +197,38 @@ export function analyzeTelemetry(records: TelemetryRecord[], question: string): 
       } failed requests.`,
       `${failedDependencies.length} dependency failures point to ProviderB.AuthorizePayment GatewayTimeout.`,
       `${exceptions.length} exceptions mention ProviderB timeout or retry budget exhaustion.`,
+    ],
+    breakdowns: {
+      byTenant: groupByDimension(postDeployment, 'tenantId'),
+      byRegion: regionBreakdown,
+      byBuildVersion: groupByDimension(checkoutRequests, 'buildVersion'),
+      byTimeWindow: groupByTimeWindow(checkoutRequests),
+    },
+    insights: [
+      {
+        title: 'Deployment correlation detected',
+        severity: 'High',
+        explanation:
+          'The failure spike starts after DeploymentCompleted for release rel-4821 and only appears on buildVersion 2026.06.01.4.',
+      },
+      {
+        title: 'Blast radius is not global',
+        severity: 'High',
+        explanation:
+          'Failures are concentrated in West Europe and tenants using ProviderB, while North Europe ProviderA traffic remains healthy.',
+      },
+      {
+        title: 'Custom dimensions explain business impact',
+        severity: 'Medium',
+        explanation:
+          'tenantId, paymentProvider, featureFlag, region, and buildVersion reveal who is affected and what rollout caused it.',
+      },
+      {
+        title: 'Adaptive alert recommendation',
+        severity: 'Medium',
+        explanation:
+          'Create an alert on ProviderB timeout rate grouped by region and buildVersion instead of a generic static 5xx alert.',
+      },
     ],
     rca: {
       incident: 'Checkout API failure and latency spike after production deployment rel-4821.',

@@ -161,6 +161,37 @@ h3 {
   justify-content: flex-end;
 }
 
+.demo-steps {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.demo-steps a {
+  background: #f8fafc;
+  border: 1px solid #dbeafe;
+  border-radius: 18px;
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  text-decoration: none;
+}
+
+.demo-steps strong {
+  color: #1d4ed8;
+}
+
+.demo-steps span,
+.section-copy {
+  color: #64748b;
+  font-size: 0.94rem;
+  line-height: 1.55;
+}
+
+.section-copy {
+  margin-bottom: 18px;
+}
+
 button {
   background: #eff6ff;
   border: 1px solid #bfdbfe;
@@ -260,6 +291,112 @@ ol {
   background: linear-gradient(135deg, #fff 0%, #f8fafc 100%);
 }
 
+.insight-list {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 20px 0 26px;
+}
+
+.insight-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+}
+
+.insight-card span {
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 0.72rem;
+  font-weight: 900;
+  justify-self: start;
+  letter-spacing: 0.08em;
+  padding: 4px 9px;
+  text-transform: uppercase;
+}
+
+.insight-card.high span {
+  background: #dc2626;
+}
+
+.insight-card.medium span {
+  background: #d97706;
+}
+
+.insight-card.low span {
+  background: #059669;
+}
+
+.insight-card strong {
+  color: #0f172a;
+}
+
+.insight-card p {
+  color: #526174;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.breakdown-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.breakdown-grid article {
+  min-width: 0;
+}
+
+.breakdown-table {
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.breakdown-table > div {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(145px, 1.5fr) repeat(4, minmax(72px, 0.7fr));
+  padding: 10px 12px;
+}
+
+.breakdown-table > div:not(:last-child) {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.breakdown-header {
+  background: #0f172a;
+  color: #cbd5e1;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.breakdown-table strong {
+  color: #0f172a;
+  overflow-wrap: anywhere;
+}
+
+.breakdown-table span {
+  color: #475569;
+}
+
+.breakdown-table .risk-row {
+  background: #fff7ed;
+}
+
+.breakdown-table .risk-row strong,
+.breakdown-table .risk-row span {
+  color: #9a3412;
+}
+
 .before-after h2 {
   margin-bottom: 18px;
 }
@@ -301,7 +438,10 @@ ol {
   .hero-panel,
   .grid.three,
   .grid.two,
-  .section-heading {
+  .section-heading,
+  .demo-steps,
+  .insight-list,
+  .breakdown-grid {
     grid-template-columns: 1fr;
   }
 
@@ -311,5 +451,13 @@ ol {
 
   .table-pill {
     grid-template-columns: 1fr;
+  }
+
+  .breakdown-table {
+    overflow-x: auto;
+  }
+
+  .breakdown-table > div {
+    min-width: 620px;
   }
 }
