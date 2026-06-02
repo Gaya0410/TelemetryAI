@@ -10,6 +10,14 @@ const demoQuestions = [
   'Show slow APIs.',
 ]
 
+const analysisSteps = [
+  'Discovered telemetry schema',
+  'Checked recent deployment events',
+  'Compared failures before/after build',
+  'Correlated dependency timeouts',
+  'Generated RCA with 87% confidence',
+]
+
 type DemoQuestion = (typeof demoQuestions)[number]
 
 type CopilotResponse = {
@@ -210,6 +218,8 @@ function BarChart({
 function App() {
   const [question, setQuestion] = useState(demoQuestions[0])
   const [activeQuestion, setActiveQuestion] = useState<DemoQuestion>(demoQuestions[0])
+  const [visibleAnalysisSteps, setVisibleAnalysisSteps] = useState(analysisSteps.length)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [connectionMode, setConnectionMode] = useState<'sample' | 'azure'>('sample')
   const [workspaceId, setWorkspaceId] = useState('')
   const [timeRange, setTimeRange] = useState<'1h' | '24h' | '7d'>('24h')
@@ -236,29 +246,29 @@ function App() {
     const matchingQuestion = demoQuestions.find(
       (demoQuestion) => demoQuestion.toLowerCase() === normalizedQuestion,
     )
+    const nextQuestion = matchingQuestion ?? (
+      normalizedQuestion.includes('error')
+        ? 'Why are errors increasing?'
+        : normalizedQuestion.includes('region') || normalizedQuestion.includes('user')
+          ? 'Which region is impacted?'
+          : normalizedQuestion.includes('slow') || normalizedQuestion.includes('latency')
+            ? 'Show slow APIs.'
+            : 'What is wrong with my system?'
+    )
 
-    if (matchingQuestion) {
-      setActiveQuestion(matchingQuestion)
-      setQuestion(matchingQuestion)
-      return
-    }
+    setQuestion(nextQuestion)
+    setActiveQuestion(nextQuestion)
+    setIsAnalyzing(true)
+    setVisibleAnalysisSteps(0)
 
-    if (normalizedQuestion.includes('error')) {
-      setActiveQuestion('Why are errors increasing?')
-      return
-    }
-
-    if (normalizedQuestion.includes('region') || normalizedQuestion.includes('user')) {
-      setActiveQuestion('Which region is impacted?')
-      return
-    }
-
-    if (normalizedQuestion.includes('slow') || normalizedQuestion.includes('latency')) {
-      setActiveQuestion('Show slow APIs.')
-      return
-    }
-
-    setActiveQuestion('What is wrong with my system?')
+    analysisSteps.forEach((_, index) => {
+      window.setTimeout(() => {
+        setVisibleAnalysisSteps(index + 1)
+        if (index === analysisSteps.length - 1) {
+          setIsAnalyzing(false)
+        }
+      }, 450 * (index + 1))
+    })
   }
 
   async function testBackend() {
@@ -485,13 +495,17 @@ function App() {
 
           <aside className="copilot-sidecar">
             <div className="reasoning-card">
-              <span>Copilot is analyzing</span>
+              <span>{isAnalyzing ? 'Copilot is analyzing...' : 'Copilot analysis complete'}</span>
               <ul>
-                <li>✓ Discovered telemetry schema</li>
-                <li>✓ Checked recent deployment events</li>
-                <li>✓ Compared failures before/after build</li>
-                <li>✓ Correlated dependency timeouts</li>
-                <li>✓ Generated RCA with 87% confidence</li>
+                {analysisSteps.map((step, index) => (
+                  <li
+                    key={step}
+                    className={index < visibleAnalysisSteps ? 'analysis-step visible' : 'analysis-step pending'}
+                  >
+                    <span>{index < visibleAnalysisSteps ? '✓' : '•'}</span>
+                    {step}
+                  </li>
+                ))}
               </ul>
             </div>
             <div className="reasoning-card">

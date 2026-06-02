@@ -465,6 +465,45 @@ h3 {
   margin-bottom: 8px;
 }
 
+.analysis-step {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  opacity: 0.45;
+  transform: translateY(4px);
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease,
+    color 0.25s ease;
+}
+
+.analysis-step span {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  flex: 0 0 22px;
+  font-weight: 900;
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+
+.analysis-step.visible {
+  color: #166534;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.analysis-step.visible span {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.analysis-step.pending span {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
 .kql-details summary {
   color: #1d4ed8;
   cursor: pointer;
