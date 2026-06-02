@@ -4,10 +4,45 @@ import { sampleTelemetry } from './data/sampleTelemetry'
 import './App.css'
 
 const demoQuestions = [
+  'What changed recently?',
+  'What caused failures today?',
+  'Which region is impacted?',
+  'Show slow APIs.',
   'Why did checkout failures increase after the latest deployment?',
   'Which custom dimensions explain the incident blast radius?',
   'Show the user-wise and time-wise failure pattern.',
   'Generate an RCA for the checkout latency spike.',
+]
+
+const suggestedQuestions = [
+  'What changed recently?',
+  'Why is checkout failing?',
+  'Are there unusual errors?',
+  'Which region is impacted?',
+  'Show slow APIs.',
+]
+
+const incidentTimeline = [
+  {
+    time: '2:05 PM',
+    title: 'Deployment completed',
+    detail: 'Build 2026.06.01.4 promoted with provider-routing-v2 enabled.',
+  },
+  {
+    time: '2:10 PM',
+    title: 'Errors start',
+    detail: 'Checkout requests begin returning 504 responses in West Europe.',
+  },
+  {
+    time: '2:12 PM',
+    title: 'Latency spike',
+    detail: 'ProviderB authorization dependency exceeds the checkout timeout threshold.',
+  },
+  {
+    time: '2:15 PM',
+    title: 'RCA generated',
+    detail: 'TelemetryAI correlates deployment, region, feature flag, dependency, and errors.',
+  },
 ]
 
 const defaultAzureDiscoveryQuery = `union isfuzzy=true requests, dependencies, exceptions, traces, customEvents
@@ -202,6 +237,20 @@ function App() {
         </div>
       </section>
 
+      <section className="demo-scenario">
+        <div>
+          <p className="eyebrow">Demo scenario</p>
+          <h2>Checkout failure after deployment</h2>
+          <p>Follow the path a real engineer would take during an incident.</p>
+        </div>
+        <div className="scenario-steps">
+          <a href="#data-source">1. Connect telemetry</a>
+          <a href="#schema-discovery">2. Discover signals</a>
+          <a href="#nl-kql">3. Ask question</a>
+          <a href="#rca">4. View RCA</a>
+        </div>
+      </section>
+
       <section className="grid three">
         <article className="metric-card">
           <span>Discovered tables</span>
@@ -237,7 +286,7 @@ function App() {
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel" id="data-source">
         <p className="eyebrow">Data source</p>
         <h2>Connect telemetry or use the sample incident</h2>
         <p className="section-copy">
@@ -359,25 +408,52 @@ function App() {
         </div>
       </section>
 
-      <section className="panel" id="nl-kql">
+      <section className="panel copilot-panel" id="nl-kql">
         <div className="section-heading">
           <div>
             <p className="eyebrow">Natural language to KQL</p>
-            <h2>Ask telemetry questions without knowing the schema</h2>
+            <h2>Ask anything about your telemetry</h2>
+            <p className="section-copy">
+              TelemetryAI suggests questions after discovery, turns your question into KQL, and
+              explains the answer in incident language.
+            </p>
           </div>
-          <div className="question-buttons">
-            {demoQuestions.map((demoQuestion) => (
+          <div className="suggested-card">
+            <span>💡 Suggested questions</span>
+            {suggestedQuestions.map((suggestedQuestion) => (
+              <button key={suggestedQuestion} type="button" onClick={() => setQuestion(suggestedQuestion)}>
+                {suggestedQuestion}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="chat-card">
+          <div className="chat-message assistant-message">
+            <span>TelemetryAI Copilot</span>
+            <p>I found requests, dependencies, exceptions, traces, custom events, and 11 custom dimensions. What would you like to investigate?</p>
+          </div>
+          <div className="chat-message user-message">
+            <span>You</span>
+            <textarea
+              aria-label="Ask anything about your telemetry"
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              rows={2}
+              placeholder="Ask anything about your telemetry..."
+            />
+            <button type="button" onClick={() => setQuestion(question.trim() || demoQuestions[0])}>
+              Ask Copilot
+            </button>
+          </div>
+          <div className="quick-prompts">
+            {demoQuestions.slice(1, 5).map((demoQuestion) => (
               <button key={demoQuestion} type="button" onClick={() => setQuestion(demoQuestion)}>
                 {demoQuestion}
               </button>
             ))}
           </div>
         </div>
-
-        <label className="question-input">
-          Question
-          <textarea value={question} onChange={(event) => setQuestion(event.target.value)} rows={3} />
-        </label>
 
         <div className="grid two">
           <article className="code-card">
@@ -521,6 +597,11 @@ function App() {
             <strong>Payment gateway timeout</strong>
             <p>ProviderB authorization calls exceeded the checkout timeout threshold.</p>
           </article>
+          <article className="rca-card confidence-card">
+            <span>Confidence score</span>
+            <strong>87%</strong>
+            <p>High confidence based on deployment timing, dependency failures, region concentration, and feature flag correlation.</p>
+          </article>
           <article className="rca-card">
             <span>Impact</span>
             <strong>West Europe checkout users</strong>
@@ -550,6 +631,20 @@ function App() {
             <strong>ProviderB</strong>
           </div>
         </div>
+        <article className="timeline-panel">
+          <h3>Incident timeline</h3>
+          <div className="timeline">
+            {incidentTimeline.map((event) => (
+              <div key={event.time} className="timeline-item">
+                <time>{event.time}</time>
+                <div>
+                  <strong>{event.title}</strong>
+                  <p>{event.detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </article>
         <div className="grid two">
           <article className="evidence-panel">
             <h3>Correlated signals</h3>

@@ -179,6 +179,49 @@ h3 {
   color: #cbd5e1;
 }
 
+.demo-scenario {
+  align-items: center;
+  background: #0f172a;
+  border-radius: 28px;
+  color: #cbd5e1;
+  display: grid;
+  gap: 22px;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
+  padding: 24px;
+}
+
+.demo-scenario h2,
+.demo-scenario .eyebrow {
+  color: #fff;
+}
+
+.demo-scenario p {
+  color: #cbd5e1;
+  line-height: 1.6;
+  margin-bottom: 0;
+}
+
+.scenario-steps {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.scenario-steps a {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  color: #dbeafe;
+  font-weight: 900;
+  line-height: 1.25;
+  padding: 14px;
+  text-decoration: none;
+}
+
+.scenario-steps a:hover {
+  background: rgba(37, 99, 235, 0.35);
+}
+
 .incident-banner {
   align-items: center;
   background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 46%, #0f172a 100%);
@@ -254,6 +297,97 @@ h3 {
   flex-wrap: wrap;
   gap: 10px;
   justify-content: flex-end;
+}
+
+.copilot-panel {
+  background:
+    radial-gradient(circle at top right, rgba(37, 99, 235, 0.16), transparent 34%),
+    rgba(255, 255, 255, 0.95);
+}
+
+.suggested-card {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 16px;
+}
+
+.suggested-card span {
+  color: #1e40af;
+  flex-basis: 100%;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chat-card {
+  background: #0f172a;
+  border-radius: 24px;
+  display: grid;
+  gap: 14px;
+  margin-bottom: 22px;
+  padding: 18px;
+}
+
+.chat-message {
+  border-radius: 18px;
+  display: grid;
+  gap: 8px;
+  max-width: 88%;
+  padding: 16px;
+}
+
+.chat-message span {
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.assistant-message {
+  background: #1e293b;
+  color: #dbeafe;
+}
+
+.assistant-message p {
+  color: #dbeafe;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.user-message {
+  background: #eff6ff;
+  justify-self: end;
+  width: min(760px, 100%);
+}
+
+.user-message span {
+  color: #1d4ed8;
+}
+
+.user-message textarea {
+  border-color: #93c5fd;
+  min-height: 78px;
+}
+
+.user-message button {
+  justify-self: start;
+}
+
+.quick-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.quick-prompts button {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #dbeafe;
 }
 
 .demo-steps {
@@ -592,7 +726,7 @@ ol {
 }
 
 .rca-story-grid {
-  grid-template-columns: 1.2fr 1fr 1fr;
+  grid-template-columns: 1.2fr 0.8fr 1fr 1fr;
 }
 
 .signal-grid {
@@ -612,6 +746,20 @@ ol {
 .rca-card.root-cause {
   background: #7f1d1d;
   border-color: #7f1d1d;
+}
+
+.rca-card.confidence-card {
+  background: #ecfeff;
+  border-color: #67e8f9;
+}
+
+.rca-card.confidence-card span {
+  color: #0e7490;
+}
+
+.rca-card.confidence-card strong {
+  color: #0e7490;
+  font-size: 2.4rem;
 }
 
 .rca-card span,
@@ -667,6 +815,60 @@ ol {
 .recommendation-panel {
   border-color: #bbf7d0;
   background: #f0fdf4;
+}
+
+.timeline-panel {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  margin-bottom: 20px;
+  padding: 18px;
+}
+
+.timeline {
+  display: grid;
+  gap: 0;
+}
+
+.timeline-item {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 92px minmax(0, 1fr);
+  padding: 0 0 18px;
+  position: relative;
+}
+
+.timeline-item:not(:last-child)::before {
+  background: #bfdbfe;
+  bottom: 0;
+  content: '';
+  left: 77px;
+  position: absolute;
+  top: 32px;
+  width: 2px;
+}
+
+.timeline-item time {
+  color: #1d4ed8;
+  font-size: 0.85rem;
+  font-weight: 900;
+}
+
+.timeline-item div {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+
+.timeline-item strong {
+  color: #0f172a;
+}
+
+.timeline-item p {
+  color: #64748b;
+  line-height: 1.5;
+  margin: 4px 0 0;
 }
 
 .insight-list {
@@ -865,6 +1067,8 @@ ol {
   }
 
   .hero-panel,
+  .demo-scenario,
+  .scenario-steps,
   .incident-banner,
   .grid.three,
   .grid.two,
