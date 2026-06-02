@@ -10,6 +10,9 @@ const demoQuestions = [
   'Generate an RCA for the checkout latency spike.',
 ]
 
+const defaultAzureDiscoveryQuery = `union isfuzzy=true requests, dependencies, exceptions, traces, customEvents
+| take 100`
+
 function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`
 }
@@ -74,8 +77,99 @@ function BarChart({
 function App() {
   const [question, setQuestion] = useState(demoQuestions[0])
   const [connectionMode, setConnectionMode] = useState<'sample' | 'azure'>('sample')
+  const [workspaceId, setWorkspaceId] = useState('')
+  const [timeRange, setTimeRange] = useState<'1h' | '24h' | '7d'>('24h')
+  const [azureQuery, setAzureQuery] = useState(defaultAzureDiscoveryQuery)
+  const [azureStatus, setAzureStatus] = useState('Azure connector is ready to test.')
+  const [azureSummary, setAzureSummary] = useState('')
+  const [azureAiAnswer, setAzureAiAnswer] = useState('')
   const schema = useMemo(() => discoverSchema(sampleTelemetry), [])
   const analysis = useMemo(() => analyzeTelemetry(sampleTelemetry, question), [question])
+
+  async function testBackend() {
+    setAzureStatus('Checking TelemetryAI API...')
+    setAzureSummary('')
+    setAzureAiAnswer('')
+
+    try {
+      const response = await fetch('/api/health')
+      const result = (await response.json()) as {
+        ok?: boolean
+        azureOpenAIConfigured?: boolean
+        error?: string
+      }
+
+      if (!response.ok) {
+        throw new Error(result.error ?? 'TelemetryAI API health check failed.')
+      }
+
+      setAzureStatus(
+        `API online. Azure OpenAI is ${
+          result.azureOpenAIConfigured ? 'configured' : 'not configured yet'
+        }.`,
+      )
+    } catch (error) {
+      setAzureStatus(
+        error instanceof Error
+          ? error.message
+          : 'Unable to reach the TelemetryAI API. Run npm run dev:full to start both frontend and backend.',
+      )
+    }
+  }
+
+  async function queryAzureTelemetry() {
+    if (!workspaceId.trim()) {
+      setAzureStatus('Enter a Log Analytics Workspace ID before querying Azure telemetry.')
+      return
+    }
+
+    setAzureStatus('Querying Azure Monitor...')
+    setAzureSummary('')
+    setAzureAiAnswer('')
+
+    try {
+      const response = await fetch('/api/azure/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workspaceId,
+          timeRange,
+          query: azureQuery,
+        }),
+      })
+      const result = (await response.json()) as {
+        status?: string
+        tables?: Array<{ name: string; rows: unknown[] }>
+        error?: string
+      }
+
+      if (!response.ok || result.error) {
+        throw new Error(result.error ?? 'Azure Monitor query failed.')
+      }
+
+      const rowCount = result.tables?.reduce((total, table) => total + table.rows.length, 0) ?? 0
+      setAzureSummary(`Azure Monitor returned ${rowCount} rows from ${result.tables?.length ?? 0} table(s).`)
+      setAzureStatus('Azure telemetry query completed.')
+
+      const aiResponse = await fetch('/api/ai/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question,
+          telemetryResult: result,
+        }),
+      })
+      const aiResult = (await aiResponse.json()) as { answer?: string; error?: string }
+
+      setAzureAiAnswer(
+        aiResponse.ok && aiResult.answer
+          ? aiResult.answer
+          : aiResult.error ?? 'Azure OpenAI analysis is not configured yet.',
+      )
+    } catch (error) {
+      setAzureStatus(error instanceof Error ? error.message : 'Unable to query Azure telemetry.')
+    }
+  }
 
   return (
     <main className="app-shell">
@@ -150,15 +244,19 @@ function App() {
               <div className="connector-form">
                 <label>
                   Log Analytics Workspace ID
-                  <input placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+                  <input
+                    value={workspaceId}
+                    onChange={(event) => setWorkspaceId(event.target.value)}
+                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  />
                 </label>
                 <label>
                   Application Insights App ID
-                  <input placeholder="Optional app id" />
+                  <input placeholder="Optional app id for future classic App Insights support" />
                 </label>
                 <label>
                   Time range
-                  <select defaultValue="24h">
+                  <select value={timeRange} onChange={(event) => setTimeRange(event.target.value as typeof timeRange)}>
                     <option value="1h">Last 1 hour</option>
                     <option value="24h">Last 24 hours</option>
                     <option value="7d">Last 7 days</option>
@@ -171,6 +269,32 @@ function App() {
                     <option value="entra">Microsoft Entra ID</option>
                   </select>
                 </label>
+              </div>
+              <label className="question-input azure-query-input">
+                Discovery KQL
+                <textarea
+                  value={azureQuery}
+                  onChange={(event) => setAzureQuery(event.target.value)}
+                  rows={4}
+                />
+              </label>
+              <div className="connector-actions">
+                <button type="button" onClick={testBackend}>
+                  Test backend
+                </button>
+                <button type="button" className="primary-action" onClick={queryAzureTelemetry}>
+                  Query Azure telemetry
+                </button>
+              </div>
+              <div className="connector-result">
+                <strong>{azureStatus}</strong>
+                {azureSummary && <p>{azureSummary}</p>}
+                {azureAiAnswer && (
+                  <div className="ai-answer">
+                    <span>Azure OpenAI analysis</span>
+                    <p>{azureAiAnswer}</p>
+                  </div>
+                )}
               </div>
               <p className="connector-note">
                 API keys and client secrets should never be entered in this browser UI. The next

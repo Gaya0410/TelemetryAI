@@ -42,6 +42,27 @@ This prototype is structured so the deterministic local analysis can be replaced
 
 For real Azure telemetry, the next production component should be a backend API, deployed on Azure App Service, Azure Functions, or Container Apps. That backend should use managed identity or Microsoft Entra ID to call Azure Monitor / Log Analytics and Azure OpenAI. Secrets, client credentials, and API keys should not be entered into or stored in the browser.
 
+This repository now includes the backend API:
+
+- `GET /api/health` checks backend availability and Azure OpenAI configuration.
+- `POST /api/azure/query` queries a Log Analytics workspace using `DefaultAzureCredential`.
+- `POST /api/ai/analyze` sends telemetry query results to Azure OpenAI for RCA-style analysis.
+
+For local Azure Monitor access, authenticate with Azure first:
+
+```bash
+az login
+```
+
+For Azure OpenAI analysis, set these values in `.env`:
+
+```bash
+AZURE_OPENAI_ENDPOINT=
+AZURE_OPENAI_API_KEY=
+AZURE_OPENAI_DEPLOYMENT=
+AZURE_OPENAI_API_VERSION=2024-10-21
+```
+
 ## Architecture
 
 ```text
@@ -70,6 +91,15 @@ User question
 npm install
 npm run dev
 ```
+
+For the full local product flow with the secure API backend:
+
+```bash
+copy .env.example .env
+npm run dev:full
+```
+
+The React app runs at `http://localhost:5173/` and proxies `/api/*` requests to the backend at `http://localhost:7071/`.
 
 ## Build
 

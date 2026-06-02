@@ -288,6 +288,52 @@ button.active {
   padding: 14px;
 }
 
+.azure-query-input {
+  margin: 18px 0 0;
+}
+
+.connector-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.primary-action {
+  background: #1d4ed8;
+  color: #fff;
+}
+
+.connector-result {
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  border-radius: 18px;
+  margin-top: 14px;
+  padding: 16px;
+}
+
+.connector-result strong {
+  color: #0f172a;
+}
+
+.ai-answer {
+  background: #ecfeff;
+  border: 1px solid #a5f3fc;
+  border-radius: 14px;
+  margin-top: 12px;
+  padding: 14px;
+}
+
+.ai-answer span {
+  color: #0e7490;
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
 .code-card,
 .summary-card {
   background: #f8fafc;
