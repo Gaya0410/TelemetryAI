@@ -24,7 +24,8 @@ The current prototype uses synthetic Azure Application Insights-style telemetry 
 - Checkout failures and latency increase.
 - Failures correlate with `region=West Europe`, `paymentProvider=ProviderB`, and `featureFlag=provider-routing-v2`.
 - Dependency telemetry shows `ProviderB.AuthorizePayment` gateway timeouts.
-- The app generates a KQL query, summary, findings, and RCA report.
+- The app generates a KQL query, summary, charts, findings, and RCA report.
+- The product UI includes an Azure telemetry connector form for Workspace ID, Application Insights App ID, time range, and authentication mode.
 
 ## Microsoft AI stack plan
 
@@ -35,14 +36,23 @@ This prototype is structured so the deterministic local analysis can be replaced
 - GitHub Copilot used during development and disclosed here per hackathon guidelines.
 - Optional Azure Static Web Apps or Azure App Service for deployment.
 
+## Dev server vs Azure AI
+
+`npm run dev` starts the local Vite development server. It is not an Azure AI instance and it does not process real Azure telemetry by itself. It serves the React web app at `http://localhost:5173/` with hot reload while the product is being built.
+
+For real Azure telemetry, the next production component should be a backend API, deployed on Azure App Service, Azure Functions, or Container Apps. That backend should use managed identity or Microsoft Entra ID to call Azure Monitor / Log Analytics and Azure OpenAI. Secrets, client credentials, and API keys should not be entered into or stored in the browser.
+
 ## Architecture
 
 ```text
 User question
+  -> Data source selector
+  -> Azure Monitor connector or sample telemetry
   -> Telemetry discovery
   -> Custom dimension interpreter
   -> KQL generator
   -> Query/result analyzer
+  -> AI-generated charts and breakdowns
   -> RCA report generator
   -> Web UI
 ```

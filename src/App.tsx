@@ -37,8 +37,43 @@ function BreakdownTable({ rows }: { rows: BreakdownRow[] }) {
   )
 }
 
+function BarChart({
+  title,
+  rows,
+  metric,
+}: {
+  title: string
+  rows: BreakdownRow[]
+  metric: 'failures' | 'averageDurationMs'
+}) {
+  const maxValue = Math.max(...rows.map((row) => row[metric]), 1)
+
+  return (
+    <article className="chart-card">
+      <h3>{title}</h3>
+      <div className="bar-chart">
+        {rows.map((row) => {
+          const value = row[metric]
+          const width = Math.max((value / maxValue) * 100, value > 0 ? 8 : 2)
+
+          return (
+            <div key={`${title}-${row.key}`} className="bar-row">
+              <span>{row.key}</span>
+              <div className="bar-track">
+                <div className="bar-fill" style={{ width: `${width}%` }}></div>
+              </div>
+              <strong>{metric === 'failures' ? value : `${value}ms`}</strong>
+            </div>
+          )
+        })}
+      </div>
+    </article>
+  )
+}
+
 function App() {
   const [question, setQuestion] = useState(demoQuestions[0])
+  const [connectionMode, setConnectionMode] = useState<'sample' | 'azure'>('sample')
   const schema = useMemo(() => discoverSchema(sampleTelemetry), [])
   const analysis = useMemo(() => analyzeTelemetry(sampleTelemetry, question), [question])
 
@@ -79,8 +114,77 @@ function App() {
       </section>
 
       <section className="panel">
-        <p className="eyebrow">How to demo it</p>
-        <h2>Four visible steps judges can follow</h2>
+        <p className="eyebrow">Data source</p>
+        <h2>Connect telemetry or use the sample incident</h2>
+        <p className="section-copy">
+          Use the sample data for an instant walkthrough, or provide Azure Monitor / Application
+          Insights details when the secure backend connector is enabled.
+        </p>
+        <div className="source-tabs">
+          <button
+            type="button"
+            className={connectionMode === 'sample' ? 'active' : ''}
+            onClick={() => setConnectionMode('sample')}
+          >
+            Sample telemetry
+          </button>
+          <button
+            type="button"
+            className={connectionMode === 'azure' ? 'active' : ''}
+            onClick={() => setConnectionMode('azure')}
+          >
+            Azure telemetry
+          </button>
+        </div>
+        <div className="connector-card">
+          {connectionMode === 'sample' ? (
+            <>
+              <strong>Sample Application Insights dataset is active</strong>
+              <p>
+                The current analysis uses synthetic requests, dependencies, traces, exceptions, and
+                custom events so the product can be demonstrated without exposing real customer data.
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="connector-form">
+                <label>
+                  Log Analytics Workspace ID
+                  <input placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+                </label>
+                <label>
+                  Application Insights App ID
+                  <input placeholder="Optional app id" />
+                </label>
+                <label>
+                  Time range
+                  <select defaultValue="24h">
+                    <option value="1h">Last 1 hour</option>
+                    <option value="24h">Last 24 hours</option>
+                    <option value="7d">Last 7 days</option>
+                  </select>
+                </label>
+                <label>
+                  Authentication
+                  <select defaultValue="managed-identity">
+                    <option value="managed-identity">Managed identity</option>
+                    <option value="entra">Microsoft Entra ID</option>
+                  </select>
+                </label>
+              </div>
+              <p className="connector-note">
+                API keys and client secrets should never be entered in this browser UI. The next
+                implementation step is a secure backend API that uses managed identity to query Azure
+                Monitor and returns only approved telemetry results to this page.
+              </p>
+            </>
+          )}
+        </div>
+      </section>
+
+      <section className="panel">
+        <p className="eyebrow">Product flow</p>
+        <h2>Analyze telemetry in four steps</h2>
         <div className="demo-steps">
           <a href="#schema-discovery">
             <strong>1. Schema discovery</strong>
@@ -179,6 +283,10 @@ function App() {
       <section className="panel" id="breakdowns">
         <p className="eyebrow">AI insights across telemetry</p>
         <h2>User-wise, region-wise, build-wise, and time-wise findings</h2>
+        <div className="chart-grid">
+          <BarChart title="Failures by tenant" rows={analysis.breakdowns.byTenant} metric="failures" />
+          <BarChart title="Latency by time window" rows={analysis.breakdowns.byTimeWindow} metric="averageDurationMs" />
+        </div>
         <div className="insight-list">
           {analysis.insights.map((insight) => (
             <article key={insight.title} className={`insight-card ${insight.severity.toLowerCase()}`}>

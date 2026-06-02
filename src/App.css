@@ -226,6 +226,68 @@ textarea {
   resize: vertical;
 }
 
+input,
+select {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  color: #0f172a;
+  font: inherit;
+  padding: 12px 14px;
+  width: 100%;
+}
+
+.source-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+button.active {
+  background: #1d4ed8;
+  color: #fff;
+}
+
+.connector-card {
+  background: #f8fafc;
+  border: 1px solid #dbeafe;
+  border-radius: 22px;
+  padding: 20px;
+}
+
+.connector-card strong {
+  color: #0f172a;
+}
+
+.connector-card p {
+  color: #526174;
+  line-height: 1.6;
+  margin: 8px 0 0;
+}
+
+.connector-form {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.connector-form label {
+  color: #334155;
+  display: grid;
+  font-size: 0.9rem;
+  font-weight: 800;
+  gap: 8px;
+}
+
+.connector-note {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 16px;
+  color: #9a3412 !important;
+  padding: 14px;
+}
+
 .code-card,
 .summary-card {
   background: #f8fafc;
@@ -296,6 +358,57 @@ ol {
   gap: 14px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   margin: 20px 0 26px;
+}
+
+.chart-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 20px 0 26px;
+}
+
+.chart-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 18px;
+}
+
+.bar-chart {
+  display: grid;
+  gap: 12px;
+}
+
+.bar-row {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(110px, 0.9fr) minmax(150px, 2fr) minmax(58px, 0.4fr);
+}
+
+.bar-row span {
+  color: #475569;
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.bar-row strong {
+  color: #0f172a;
+  font-size: 0.88rem;
+  text-align: right;
+}
+
+.bar-track {
+  background: #e2e8f0;
+  border-radius: 999px;
+  height: 12px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  background: linear-gradient(90deg, #2563eb, #14b8a6);
+  border-radius: inherit;
+  height: 100%;
 }
 
 .insight-card {
@@ -441,7 +554,9 @@ ol {
   .section-heading,
   .demo-steps,
   .insight-list,
-  .breakdown-grid {
+  .breakdown-grid,
+  .connector-form,
+  .chart-grid {
     grid-template-columns: 1fr;
   }
 
