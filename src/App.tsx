@@ -83,8 +83,14 @@ function App() {
   const [azureStatus, setAzureStatus] = useState('Azure connector is ready to test.')
   const [azureSummary, setAzureSummary] = useState('')
   const [azureAiAnswer, setAzureAiAnswer] = useState('')
+  const [selectedTableName, setSelectedTableName] = useState('requests')
+  const [selectedDimensionKey, setSelectedDimensionKey] = useState('buildVersion')
   const schema = useMemo(() => discoverSchema(sampleTelemetry), [])
   const analysis = useMemo(() => analyzeTelemetry(sampleTelemetry, question), [question])
+  const selectedTable = schema.tables.find((table) => table.name === selectedTableName) ?? schema.tables[0]
+  const selectedDimension =
+    schema.customDimensions.find((dimension) => dimension.key === selectedDimensionKey) ??
+    schema.customDimensions[0]
 
   async function testBackend() {
     setAzureStatus('Checking TelemetryAI API...')
@@ -175,17 +181,24 @@ function App() {
     <main className="app-shell">
       <section className="hero-panel">
         <div>
-          <p className="eyebrow">Microsoft Build AI · AI Meets Data</p>
+          <p className="eyebrow">TelemetryAI Copilot · AI Meets Data</p>
           <h1>TelemetryAI</h1>
+          <h2 className="hero-title">AI Copilot that makes unknown telemetry usable in minutes</h2>
           <p className="hero-copy">
-            An AI telemetry intelligence agent that discovers unknown Azure observability data,
-            explains custom dimensions, generates KQL, and produces evidence-grounded RCA reports.
+            Connect Azure-style telemetry or use the sample incident. TelemetryAI discovers what
+            data exists, explains custom dimensions, converts natural language into KQL, and turns
+            noisy signals into a root-cause story.
           </p>
+          <div className="hero-actions">
+            <a href="#schema-discovery">Explore discovery</a>
+            <a href="#rca">View incident RCA</a>
+          </div>
         </div>
         <div className="hero-card">
           <span className="status-dot"></span>
-          Demo dataset loaded
+          Unknown telemetry made usable
           <strong>{sampleTelemetry.length} Azure-style telemetry records</strong>
+          <p>Schema, custom dimensions, KQL, charts, and RCA generated from synthetic telemetry.</p>
         </div>
       </section>
 
@@ -205,6 +218,23 @@ function App() {
           <strong>ProviderB</strong>
           <p>Timeout failures correlated with build 2026.06.01.4</p>
         </article>
+      </section>
+
+      <section className="incident-banner">
+        <div>
+          <span className="incident-icon">🚨</span>
+          <p className="eyebrow">Incident detected</p>
+          <h2>Checkout failures spiked after deployment</h2>
+          <p>
+            TelemetryAI correlated deployment, dependency, region, feature flag, latency, and error
+            signals into one explainable incident.
+          </p>
+        </div>
+        <div className="incident-root">
+          <span>Root cause</span>
+          <strong>Payment gateway timeout</strong>
+          <small>ProviderB · West Europe · provider-routing-v2</small>
+        </div>
       </section>
 
       <section className="panel">
@@ -369,38 +399,74 @@ function App() {
       <section className="grid two" id="schema-discovery">
         <article className="panel">
           <p className="eyebrow">Auto-discovery</p>
-          <h2>Telemetry map</h2>
+          <h2>Clickable telemetry map</h2>
           <p className="section-copy">
-            This is the schema discovery output: the tool inspected the telemetry records and found
-            the available tables and fields without the user providing a dashboard or schema.
+            TelemetryAI inspects unknown telemetry and reveals the tables, fields, and useful
+            dimensions. Select any discovered table to inspect the schema.
           </p>
           <div className="table-list">
             {schema.tables.map((table) => (
-              <div key={table.name} className="table-pill">
+              <button
+                key={table.name}
+                type="button"
+                className={`table-pill discovery-card ${selectedTable?.name === table.name ? 'selected' : ''}`}
+                onClick={() => setSelectedTableName(table.name)}
+              >
                 <strong>{table.name}</strong>
                 <span>{table.records} records</span>
                 <small>{table.columns.join(', ')}</small>
-              </div>
+              </button>
             ))}
           </div>
+          {selectedTable && (
+            <div className="discovery-detail">
+              <span>Selected table</span>
+              <strong>{selectedTable.name}</strong>
+              <p>{selectedTable.records} records discovered with {selectedTable.columns.length} fields.</p>
+              <div className="field-chips">
+                {selectedTable.columns.map((column) => (
+                  <small key={column}>{column}</small>
+                ))}
+              </div>
+            </div>
+          )}
         </article>
 
         <article className="panel">
           <p className="eyebrow">Custom dimensions</p>
           <h2>AI field interpreter</h2>
           <p className="section-copy">
-            These are the unknown custom dimensions converted into human meaning so a non-KQL user
-            can understand what the telemetry contains.
+            Custom dimensions are where business meaning often hides. Select a field to see what
+            TelemetryAI inferred from the values.
           </p>
           <div className="dimension-list">
-            {schema.customDimensions.slice(0, 8).map((dimension) => (
-              <div key={dimension.key}>
+            {schema.customDimensions.map((dimension) => (
+              <button
+                key={dimension.key}
+                type="button"
+                className={`dimension-card discovery-card ${
+                  selectedDimension?.key === dimension.key ? 'selected' : ''
+                }`}
+                onClick={() => setSelectedDimensionKey(dimension.key)}
+              >
                 <strong>{dimension.key}</strong>
                 <p>{dimension.likelyMeaning}</p>
                 <small>{dimension.examples.join(' · ')}</small>
-              </div>
+              </button>
             ))}
           </div>
+          {selectedDimension && (
+            <div className="discovery-detail">
+              <span>Selected custom dimension</span>
+              <strong>{selectedDimension.key}</strong>
+              <p>{selectedDimension.likelyMeaning}</p>
+              <div className="field-chips">
+                {selectedDimension.examples.map((example) => (
+                  <small key={example}>{example}</small>
+                ))}
+              </div>
+            </div>
+          )}
         </article>
       </section>
 
@@ -441,29 +507,72 @@ function App() {
       </section>
 
       <section className="panel rca-panel" id="rca">
-        <p className="eyebrow">Automated RCA</p>
-        <h2>{analysis.rca.incident}</h2>
-        <div className="grid two">
+        <div className="rca-header">
+          <span className="incident-icon">🚨</span>
           <div>
-            <h3>Impact</h3>
-            <p>{analysis.rca.impact}</p>
-            <h3>Likely root cause</h3>
-            <p>{analysis.rca.likelyRootCause}</p>
+            <p className="eyebrow">Automated RCA</p>
+            <h2>Incident Detected: checkout failure spike</h2>
+            <p>{analysis.rca.incident}</p>
           </div>
-          <div>
-            <h3>Evidence</h3>
+        </div>
+        <div className="rca-story-grid">
+          <article className="rca-card root-cause">
+            <span>Root Cause</span>
+            <strong>Payment gateway timeout</strong>
+            <p>ProviderB authorization calls exceeded the checkout timeout threshold.</p>
+          </article>
+          <article className="rca-card">
+            <span>Impact</span>
+            <strong>West Europe checkout users</strong>
+            <p>{analysis.rca.impact}</p>
+          </article>
+          <article className="rca-card">
+            <span>Feature correlation</span>
+            <strong>provider-routing-v2</strong>
+            <p>Failures appeared after build 2026.06.01.4 enabled the new provider route.</p>
+          </article>
+        </div>
+        <div className="signal-grid">
+          <div className="signal-card danger">
+            <span>Latency ↑</span>
+            <strong>1.3s+</strong>
+          </div>
+          <div className="signal-card danger">
+            <span>Errors ↑</span>
+            <strong>504</strong>
+          </div>
+          <div className="signal-card">
+            <span>Region</span>
+            <strong>West Europe</strong>
+          </div>
+          <div className="signal-card">
+            <span>Provider</span>
+            <strong>ProviderB</strong>
+          </div>
+        </div>
+        <div className="grid two">
+          <article className="evidence-panel">
+            <h3>Correlated signals</h3>
             <ul>
+              <li>Latency increased after deployment.</li>
+              <li>Errors increased with HTTP 504 responses.</li>
+              <li>Region concentrated in West Europe.</li>
+              <li>Feature flag provider-routing-v2 selected ProviderB.</li>
               {analysis.rca.evidence.map((evidence) => (
                 <li key={evidence}>{evidence}</li>
               ))}
             </ul>
+          </article>
+          <article className="recommendation-panel">
             <h3>Recommended actions</h3>
             <ol>
+              <li>Switch provider fallback to ProviderA.</li>
+              <li>Disable provider-routing-v2 for West Europe.</li>
               {analysis.rca.recommendedActions.map((action) => (
                 <li key={action}>{action}</li>
               ))}
             </ol>
-          </div>
+          </article>
         </div>
       </section>
 

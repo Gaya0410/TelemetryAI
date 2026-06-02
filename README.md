@@ -1,6 +1,6 @@
 # TelemetryAI
 
-TelemetryAI is an AI telemetry intelligence prototype for the Microsoft Build AI hackathon. It helps teams turn Azure-style observability data into actionable insight when they do not already know the telemetry schema, custom dimensions, or KQL.
+TelemetryAI is an AI Copilot that makes unknown telemetry usable in minutes. It helps engineers turn Azure-style observability data into actionable insight when they do not already know the telemetry schema, custom dimensions, or KQL.
 
 ## Problem
 
@@ -8,7 +8,7 @@ Engineering teams often collect Application Insights and Azure Monitor telemetry
 
 ## Solution
 
-TelemetryAI demonstrates a workflow where an AI agent:
+TelemetryAI demonstrates a workflow where an AI Copilot:
 
 1. Auto-discovers telemetry tables, columns, and custom dimensions.
 2. Explains the likely meaning of custom dimensions such as `buildVersion`, `tenantId`, `region`, `featureFlag`, and `paymentProvider`.
@@ -111,10 +111,6 @@ npm run build
 
 The demo uses synthetic telemetry only. Do not commit secrets, API keys, customer data, employer data, or proprietary third-party data to this repository.
 
-## Team roles
+## Participant
 
-Update before submission:
-
-- Team member 1: Product, architecture, implementation
-- Team member 2: AI integration, Azure deployment
-- Team member 3: Demo, testing, documentation
+- Solo participant: product design, architecture, implementation, AI integration, deployment, demo, and documentation.
