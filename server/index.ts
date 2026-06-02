@@ -143,7 +143,7 @@ app.post('/api/ai/analyze', async (request, response) => {
         {
           role: 'system',
           content:
-            'You are TelemetryAI, an Azure observability analyst. Explain telemetry results with concise RCA, impact, evidence, and recommended actions. Do not invent facts beyond the provided data.',
+            'You are Telemetry Copilot, an Azure observability analyst. Explain telemetry results with concise RCA, impact, evidence, and recommended actions. Do not invent facts beyond the provided data.',
         },
         {
           role: 'user',
@@ -170,5 +170,5 @@ app.post('/api/ai/analyze', async (request, response) => {
 })
 
 app.listen(port, () => {
-  console.log(`TelemetryAI API listening on http://localhost:${port}`)
+  console.log(`Telemetry Copilot API listening on http://localhost:${port}`)
 })

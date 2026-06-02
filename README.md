@@ -1,6 +1,6 @@
-# TelemetryAI
+# Telemetry Copilot
 
-TelemetryAI is an AI Copilot that makes unknown telemetry usable in minutes. It helps engineers turn Azure-style observability data into actionable insight when they do not already know the telemetry schema, custom dimensions, or KQL.
+Telemetry Copilot is an AI Copilot that makes unknown telemetry usable in minutes. It helps engineers turn Azure-style observability data into actionable insight when they do not already know the telemetry schema, custom dimensions, or KQL.
 
 ## Problem
 
@@ -8,7 +8,7 @@ Engineering teams often collect Application Insights and Azure Monitor telemetry
 
 ## Solution
 
-TelemetryAI demonstrates a workflow where an AI Copilot:
+Telemetry Copilot demonstrates a workflow where an AI Copilot:
 
 1. Auto-discovers telemetry tables, columns, and custom dimensions.
 2. Explains the likely meaning of custom dimensions such as `buildVersion`, `tenantId`, `region`, `featureFlag`, and `paymentProvider`.

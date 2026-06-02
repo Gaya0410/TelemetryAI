@@ -41,7 +41,7 @@ const incidentTimeline = [
   {
     time: '2:15 PM',
     title: 'RCA generated',
-    detail: 'TelemetryAI correlates deployment, region, feature flag, dependency, and errors.',
+    detail: 'Telemetry Copilot correlates deployment, region, feature flag, dependency, and errors.',
   },
 ]
 
@@ -128,7 +128,7 @@ function App() {
     schema.customDimensions[0]
 
   async function testBackend() {
-    setAzureStatus('Checking TelemetryAI API...')
+    setAzureStatus('Checking Telemetry Copilot API...')
     setAzureSummary('')
     setAzureAiAnswer('')
 
@@ -141,7 +141,7 @@ function App() {
       }
 
       if (!response.ok) {
-        throw new Error(result.error ?? 'TelemetryAI API health check failed.')
+        throw new Error(result.error ?? 'Telemetry Copilot API health check failed.')
       }
 
       setAzureStatus(
@@ -153,7 +153,7 @@ function App() {
       setAzureStatus(
         error instanceof Error
           ? error.message
-          : 'Unable to reach the TelemetryAI API. Run npm run dev:full to start both frontend and backend.',
+          : 'Unable to reach the Telemetry Copilot API. Run npm run dev:full to start both frontend and backend.',
       )
     }
   }
@@ -216,17 +216,16 @@ function App() {
     <main className="app-shell">
       <section className="hero-panel">
         <div>
-          <p className="eyebrow">TelemetryAI Copilot · AI Meets Data</p>
-          <h1>TelemetryAI</h1>
+          <p className="eyebrow">Telemetry Copilot · AI Meets Data</p>
+          <h1>Telemetry Copilot</h1>
           <h2 className="hero-title">AI Copilot that makes unknown telemetry usable in minutes</h2>
           <p className="hero-copy">
-            Connect Azure-style telemetry or use the sample incident. TelemetryAI discovers what
+            Connect Azure-style telemetry or use the sample incident. Telemetry Copilot discovers what
             data exists, explains custom dimensions, converts natural language into KQL, and turns
             noisy signals into a root-cause story.
           </p>
           <div className="hero-actions">
             <a href="#schema-discovery">Explore discovery</a>
-            <a href="#rca">View incident RCA</a>
           </div>
         </div>
         <div className="hero-card">
@@ -234,20 +233,6 @@ function App() {
           Unknown telemetry made usable
           <strong>{sampleTelemetry.length} Azure-style telemetry records</strong>
           <p>Schema, custom dimensions, KQL, charts, and RCA generated from synthetic telemetry.</p>
-        </div>
-      </section>
-
-      <section className="demo-scenario">
-        <div>
-          <p className="eyebrow">Demo scenario</p>
-          <h2>Checkout failure after deployment</h2>
-          <p>Follow the path a real engineer would take during an incident.</p>
-        </div>
-        <div className="scenario-steps">
-          <a href="#data-source">1. Connect telemetry</a>
-          <a href="#schema-discovery">2. Discover signals</a>
-          <a href="#nl-kql">3. Ask question</a>
-          <a href="#rca">4. View RCA</a>
         </div>
       </section>
 
@@ -275,9 +260,12 @@ function App() {
           <p className="eyebrow">Incident detected</p>
           <h2>Checkout failures spiked after deployment</h2>
           <p>
-            TelemetryAI correlated deployment, dependency, region, feature flag, latency, and error
+            Telemetry Copilot correlated deployment, dependency, region, feature flag, latency, and error
             signals into one explainable incident.
           </p>
+          <div className="incident-actions">
+            <a href="#rca">View incident RCA</a>
+          </div>
         </div>
         <div className="incident-root">
           <span>Root cause</span>
@@ -414,7 +402,7 @@ function App() {
             <p className="eyebrow">Natural language to KQL</p>
             <h2>Ask anything about your telemetry</h2>
             <p className="section-copy">
-              TelemetryAI suggests questions after discovery, turns your question into KQL, and
+              Telemetry Copilot suggests questions after discovery, turns your question into KQL, and
               explains the answer in incident language.
             </p>
           </div>
@@ -430,7 +418,7 @@ function App() {
 
         <div className="chat-card">
           <div className="chat-message assistant-message">
-            <span>TelemetryAI Copilot</span>
+            <span>Telemetry Copilot</span>
             <p>I found requests, dependencies, exceptions, traces, custom events, and 11 custom dimensions. What would you like to investigate?</p>
           </div>
           <div className="chat-message user-message">
@@ -477,7 +465,7 @@ function App() {
           <p className="eyebrow">Auto-discovery</p>
           <h2>Clickable telemetry map</h2>
           <p className="section-copy">
-            TelemetryAI inspects unknown telemetry and reveals the tables, fields, and useful
+            Telemetry Copilot inspects unknown telemetry and reveals the tables, fields, and useful
             dimensions. Select any discovered table to inspect the schema.
           </p>
           <div className="table-list">
@@ -513,7 +501,7 @@ function App() {
           <h2>AI field interpreter</h2>
           <p className="section-copy">
             Custom dimensions are where business meaning often hides. Select a field to see what
-            TelemetryAI inferred from the values.
+            Telemetry Copilot inferred from the values.
           </p>
           <div className="dimension-list">
             {schema.customDimensions.map((dimension) => (

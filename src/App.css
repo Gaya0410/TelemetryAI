@@ -179,49 +179,6 @@ h3 {
   color: #cbd5e1;
 }
 
-.demo-scenario {
-  align-items: center;
-  background: #0f172a;
-  border-radius: 28px;
-  color: #cbd5e1;
-  display: grid;
-  gap: 22px;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
-  padding: 24px;
-}
-
-.demo-scenario h2,
-.demo-scenario .eyebrow {
-  color: #fff;
-}
-
-.demo-scenario p {
-  color: #cbd5e1;
-  line-height: 1.6;
-  margin-bottom: 0;
-}
-
-.scenario-steps {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.scenario-steps a {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 16px;
-  color: #dbeafe;
-  font-weight: 900;
-  line-height: 1.25;
-  padding: 14px;
-  text-decoration: none;
-}
-
-.scenario-steps a:hover {
-  background: rgba(37, 99, 235, 0.35);
-}
-
 .incident-banner {
   align-items: center;
   background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 46%, #0f172a 100%);
@@ -282,6 +239,26 @@ h3 {
 
 .incident-root small {
   color: #fee2e2;
+}
+
+.incident-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.incident-actions a {
+  background: #fff;
+  border-radius: 999px;
+  color: #991b1b;
+  font-weight: 900;
+  padding: 12px 18px;
+  text-decoration: none;
+}
+
+.incident-actions a:hover {
+  background: #fee2e2;
 }
 
 .section-heading {
@@ -1067,8 +1044,6 @@ ol {
   }
 
   .hero-panel,
-  .demo-scenario,
-  .scenario-steps,
   .incident-banner,
   .grid.three,
   .grid.two,
