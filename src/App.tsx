@@ -14,14 +14,6 @@ const demoQuestions = [
   'Generate an RCA for the checkout latency spike.',
 ]
 
-const suggestedQuestions = [
-  'What changed recently?',
-  'Why is checkout failing?',
-  'Are there unusual errors?',
-  'Which region is impacted?',
-  'Show slow APIs.',
-]
-
 const incidentTimeline = [
   {
     time: '2:05 PM',
@@ -274,6 +266,96 @@ function App() {
         </div>
       </section>
 
+      <section className="panel copilot-panel" id="nl-kql">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Ask Telemetry Copilot</p>
+            <h2>Chat with your telemetry, not your dashboards</h2>
+            <p className="section-copy">
+              Ask in plain English. Telemetry Copilot discovers context, generates KQL, explains the
+              answer, and links the evidence back to the incident.
+            </p>
+          </div>
+          <div className="context-card">
+            <span>Context understood</span>
+            <strong>{schema.tables.length} tables · {schema.customDimensions.length} custom dimensions</strong>
+            <p>Incident window: 2:05 PM - 2:15 PM · Primary signal: ProviderB timeout</p>
+          </div>
+        </div>
+
+        <div className="chat-layout">
+          <div className="chat-card">
+            <div className="chat-message assistant-message">
+              <span>Telemetry Copilot</span>
+              <p>
+                I discovered requests, dependencies, exceptions, traces, custom events, and custom
+                dimensions like buildVersion, region, featureFlag, tenantId, and paymentProvider.
+              </p>
+            </div>
+            <div className="chat-message user-message">
+              <span>You</span>
+              <textarea
+                aria-label="Ask anything about your telemetry"
+                value={question}
+                onChange={(event) => setQuestion(event.target.value)}
+                rows={2}
+                placeholder="Ask anything about your telemetry..."
+              />
+              <button type="button" onClick={() => setQuestion(question.trim() || demoQuestions[0])}>
+                Ask Copilot
+              </button>
+            </div>
+            <div className="chat-message assistant-message answer-message">
+              <span>Telemetry Copilot answer</span>
+              <p>{analysis.summary}</p>
+              <div className="answer-card-grid">
+                <article>
+                  <small>Finding</small>
+                  <strong>Checkout failures increased</strong>
+                </article>
+                <article>
+                  <small>Root cause</small>
+                  <strong>ProviderB timeout</strong>
+                </article>
+                <article>
+                  <small>Evidence</small>
+                  <strong>504s + West Europe + feature flag</strong>
+                </article>
+                <article>
+                  <small>Next action</small>
+                  <strong>Disable provider-routing-v2</strong>
+                </article>
+              </div>
+            </div>
+            <div className="quick-prompts">
+              {demoQuestions.slice(0, 5).map((demoQuestion) => (
+                <button key={demoQuestion} type="button" onClick={() => setQuestion(demoQuestion)}>
+                  {demoQuestion}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <aside className="copilot-sidecar">
+            <div className="reasoning-card">
+              <span>Copilot is analyzing</span>
+              <ul>
+                <li>✓ Discovered telemetry schema</li>
+                <li>✓ Checked recent deployment events</li>
+                <li>✓ Compared failures before/after build</li>
+                <li>✓ Correlated dependency timeouts</li>
+                <li>✓ Generated RCA with 87% confidence</li>
+              </ul>
+            </div>
+            <details className="kql-details">
+              <summary>View generated KQL</summary>
+              <pre>{analysis.generatedKql}</pre>
+            </details>
+            <a className="rca-link-button" href="#rca">Open full RCA</a>
+          </aside>
+        </div>
+      </section>
+
       <section className="panel" id="data-source">
         <p className="eyebrow">Data source</p>
         <h2>Connect telemetry or use the sample incident</h2>
@@ -393,70 +475,6 @@ function App() {
             <strong>4. RCA report</strong>
             <span>Review impact, evidence, likely cause, and recommended actions.</span>
           </a>
-        </div>
-      </section>
-
-      <section className="panel copilot-panel" id="nl-kql">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Natural language to KQL</p>
-            <h2>Ask anything about your telemetry</h2>
-            <p className="section-copy">
-              Telemetry Copilot suggests questions after discovery, turns your question into KQL, and
-              explains the answer in incident language.
-            </p>
-          </div>
-          <div className="suggested-card">
-            <span>💡 Suggested questions</span>
-            {suggestedQuestions.map((suggestedQuestion) => (
-              <button key={suggestedQuestion} type="button" onClick={() => setQuestion(suggestedQuestion)}>
-                {suggestedQuestion}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="chat-card">
-          <div className="chat-message assistant-message">
-            <span>Telemetry Copilot</span>
-            <p>I found requests, dependencies, exceptions, traces, custom events, and 11 custom dimensions. What would you like to investigate?</p>
-          </div>
-          <div className="chat-message user-message">
-            <span>You</span>
-            <textarea
-              aria-label="Ask anything about your telemetry"
-              value={question}
-              onChange={(event) => setQuestion(event.target.value)}
-              rows={2}
-              placeholder="Ask anything about your telemetry..."
-            />
-            <button type="button" onClick={() => setQuestion(question.trim() || demoQuestions[0])}>
-              Ask Copilot
-            </button>
-          </div>
-          <div className="quick-prompts">
-            {demoQuestions.slice(1, 5).map((demoQuestion) => (
-              <button key={demoQuestion} type="button" onClick={() => setQuestion(demoQuestion)}>
-                {demoQuestion}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid two">
-          <article className="code-card">
-            <h3>Generated KQL</h3>
-            <pre>{analysis.generatedKql}</pre>
-          </article>
-          <article className="summary-card">
-            <h3>AI summary</h3>
-            <p>{analysis.summary}</p>
-            <ul>
-              {analysis.findings.map((finding) => (
-                <li key={finding}>{finding}</li>
-              ))}
-            </ul>
-          </article>
         </div>
       </section>
 

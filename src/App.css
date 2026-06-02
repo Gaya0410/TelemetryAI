@@ -282,6 +282,36 @@ h3 {
     rgba(255, 255, 255, 0.95);
 }
 
+.context-card {
+  background: #0f172a;
+  border-radius: 20px;
+  color: #cbd5e1;
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+}
+
+.context-card span,
+.reasoning-card span {
+  color: #93c5fd;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.context-card strong {
+  color: #fff;
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
+
+.context-card p {
+  color: #cbd5e1;
+  line-height: 1.5;
+  margin: 0;
+}
+
 .suggested-card {
   background: #eff6ff;
   border: 1px solid #bfdbfe;
@@ -301,12 +331,18 @@ h3 {
   text-transform: uppercase;
 }
 
+.chat-layout {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.8fr);
+}
+
 .chat-card {
   background: #0f172a;
   border-radius: 24px;
   display: grid;
   gap: 14px;
-  margin-bottom: 22px;
+  margin-bottom: 0;
   padding: 18px;
 }
 
@@ -334,6 +370,39 @@ h3 {
   color: #dbeafe;
   line-height: 1.6;
   margin: 0;
+}
+
+.answer-message {
+  max-width: 96%;
+}
+
+.answer-card-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 8px;
+}
+
+.answer-card-grid article {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.answer-card-grid small {
+  color: #93c5fd;
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.answer-card-grid strong {
+  color: #fff;
+  line-height: 1.25;
 }
 
 .user-message {
@@ -365,6 +434,52 @@ h3 {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.2);
   color: #dbeafe;
+}
+
+.copilot-sidecar {
+  display: grid;
+  gap: 14px;
+}
+
+.reasoning-card,
+.kql-details {
+  background: #f8fafc;
+  border: 1px solid #dbeafe;
+  border-radius: 20px;
+  padding: 18px;
+}
+
+.reasoning-card ul {
+  margin-top: 10px;
+  padding-left: 0;
+}
+
+.reasoning-card li {
+  color: #334155;
+  list-style: none;
+  margin-bottom: 8px;
+}
+
+.kql-details summary {
+  color: #1d4ed8;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.kql-details pre {
+  margin-top: 14px;
+}
+
+.rca-link-button {
+  align-items: center;
+  background: #1d4ed8;
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  font-weight: 900;
+  justify-content: center;
+  padding: 13px 18px;
+  text-decoration: none;
 }
 
 .demo-steps {
@@ -1048,6 +1163,8 @@ ol {
   .grid.three,
   .grid.two,
   .section-heading,
+  .chat-layout,
+  .answer-card-grid,
   .rca-header,
   .rca-story-grid,
   .signal-grid,
