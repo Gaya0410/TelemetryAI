@@ -602,20 +602,114 @@ function App() {
           </div>
         </div>
         <div className="hero-card">
-          <span className="status-dot"></span>
-          {isLiveAzureMode ? 'Live telemetry discovered' : 'Unknown telemetry made usable'}
-          <strong>
-            {isLiveAzureMode
-              ? `${schema.tables.length} live telemetry tables`
-              : `${sampleTelemetry.length} Azure-style telemetry records`}
-          </strong>
-          <p>
-            {isLiveAzureMode
-              ? `${discoveredFieldCount} fields and ${schema.customDimensions.length} custom dimensions discovered from the connected telemetry source.`
-              : 'Schema, custom dimensions, KQL, charts, and RCA generated from synthetic telemetry.'}
-          </p>
+          <div>
+            <span className="status-dot"></span>
+            {isLiveAzureMode ? 'Live telemetry discovered' : 'Unknown telemetry made usable'}
+            <strong>
+              {isLiveAzureMode
+                ? `${schema.tables.length} live telemetry tables`
+                : `${sampleTelemetry.length} Azure-style telemetry records`}
+            </strong>
+            <p>
+              {isLiveAzureMode
+                ? `${discoveredFieldCount} fields and ${schema.customDimensions.length} custom dimensions discovered from the connected telemetry source.`
+                : 'Schema, custom dimensions, KQL, charts, and RCA generated from synthetic telemetry.'}
+            </p>
+          </div>
+          <div className="hero-source-actions" aria-label="Choose data source">
+            <button
+              type="button"
+              className={connectionMode === 'sample' ? 'active' : ''}
+              aria-pressed={connectionMode === 'sample'}
+              onClick={() => setConnectionMode('sample')}
+            >
+              Sample telemetry
+            </button>
+            <button
+              type="button"
+              className={connectionMode === 'azure' ? 'active' : ''}
+              aria-pressed={connectionMode === 'azure'}
+              onClick={() => setConnectionMode('azure')}
+            >
+              Azure telemetry
+            </button>
+          </div>
         </div>
       </section>
+
+      {connectionMode === 'azure' && (
+        <section className="panel azure-connector-panel" id="data-source">
+          <p className="eyebrow">Azure telemetry</p>
+          <h2>Connect Azure Monitor or Application Insights</h2>
+          <div className="connector-card">
+            <div className="connector-form">
+              <label>
+                Log Analytics Workspace ID
+                <input
+                  value={workspaceId}
+                  onChange={(event) => setWorkspaceId(event.target.value)}
+                  placeholder="Optional if APPLICATIONINSIGHTS_APP_ID/API_KEY are in .env"
+                />
+              </label>
+              <label>
+                Application Insights App ID
+                <input placeholder="Configured in backend .env, not entered in browser" disabled />
+              </label>
+              <label>
+                Time range
+                <select value={timeRange} onChange={(event) => setTimeRange(event.target.value as typeof timeRange)}>
+                  <option value="1h">Last 1 hour</option>
+                  <option value="12h">Last 12 hours</option>
+                  <option value="24h">Last 24 hours</option>
+                  <option value="7d">Last 7 days</option>
+                </select>
+              </label>
+              <label>
+                Authentication
+                <select defaultValue="app-insights-api-key">
+                  <option value="app-insights-api-key">Application Insights API key from .env</option>
+                  <option value="managed-identity">DefaultAzureCredential / az login</option>
+                </select>
+              </label>
+            </div>
+            <label className="question-input azure-query-input">
+              Discovery KQL
+              <textarea
+                value={azureQuery}
+                onChange={(event) => setAzureQuery(event.target.value)}
+                rows={4}
+              />
+            </label>
+            <div className="connector-actions">
+              <button type="button" onClick={testBackend}>
+                Test backend
+              </button>
+              <button type="button" onClick={discoverAzureTelemetry}>
+                Discover schema
+              </button>
+              <button type="button" className="primary-action" onClick={queryAzureTelemetry}>
+                Query Azure telemetry
+              </button>
+            </div>
+            <div className="connector-result">
+              <strong>{azureStatus}</strong>
+              {azureSummary && <p>{azureSummary}</p>}
+              {azureAiAnswer && (
+                <div className="ai-answer">
+                  <span>Azure OpenAI analysis</span>
+                  <p>{azureAiAnswer}</p>
+                </div>
+              )}
+            </div>
+            <p className="connector-note">
+              API keys and client secrets should never be entered in this browser UI. If
+              APPLICATIONINSIGHTS_APP_ID and APPLICATIONINSIGHTS_API_KEY are set in .env, the local
+              backend queries Application Insights with that read key. Otherwise it falls back to
+              DefaultAzureCredential for Log Analytics.
+            </p>
+          </div>
+        </section>
+      )}
 
       <section className="grid three">
         <article className="metric-card">
@@ -777,106 +871,6 @@ function App() {
             <a className="rca-link-button" href="#rca">Open full RCA</a>
           </aside>
         </div>
-      </section>
-
-      <section className="panel data-source-panel" id="data-source">
-        <div className="source-choice-card">
-          <div>
-            <p className="eyebrow">Data source</p>
-            <h2>Choose where Telemetry Copilot should read from</h2>
-            <p className="section-copy">
-              Start with the guided sample incident, or connect Azure Monitor / Application Insights when
-              the secure backend connector is enabled.
-            </p>
-          </div>
-          <div className="source-tabs" aria-label="Choose data source">
-            <button
-              type="button"
-              className={connectionMode === 'sample' ? 'active' : ''}
-              aria-pressed={connectionMode === 'sample'}
-              onClick={() => setConnectionMode('sample')}
-            >
-              Sample telemetry
-            </button>
-            <button
-              type="button"
-              className={connectionMode === 'azure' ? 'active' : ''}
-              aria-pressed={connectionMode === 'azure'}
-              onClick={() => setConnectionMode('azure')}
-            >
-              Azure telemetry
-            </button>
-          </div>
-        </div>
-        {connectionMode === 'azure' && (
-          <div className="connector-card">
-            <div className="connector-form">
-              <label>
-                Log Analytics Workspace ID
-                <input
-                  value={workspaceId}
-                  onChange={(event) => setWorkspaceId(event.target.value)}
-                  placeholder="Optional if APPLICATIONINSIGHTS_APP_ID/API_KEY are in .env"
-                />
-              </label>
-              <label>
-                Application Insights App ID
-                <input placeholder="Configured in backend .env, not entered in browser" disabled />
-              </label>
-              <label>
-                Time range
-                <select value={timeRange} onChange={(event) => setTimeRange(event.target.value as typeof timeRange)}>
-                  <option value="1h">Last 1 hour</option>
-                  <option value="12h">Last 12 hours</option>
-                  <option value="24h">Last 24 hours</option>
-                  <option value="7d">Last 7 days</option>
-                </select>
-              </label>
-              <label>
-                Authentication
-                <select defaultValue="app-insights-api-key">
-                  <option value="app-insights-api-key">Application Insights API key from .env</option>
-                  <option value="managed-identity">DefaultAzureCredential / az login</option>
-                </select>
-              </label>
-            </div>
-            <label className="question-input azure-query-input">
-              Discovery KQL
-              <textarea
-                value={azureQuery}
-                onChange={(event) => setAzureQuery(event.target.value)}
-                rows={4}
-              />
-            </label>
-            <div className="connector-actions">
-              <button type="button" onClick={testBackend}>
-                Test backend
-              </button>
-              <button type="button" onClick={discoverAzureTelemetry}>
-                Discover schema
-              </button>
-              <button type="button" className="primary-action" onClick={queryAzureTelemetry}>
-                Query Azure telemetry
-              </button>
-            </div>
-            <div className="connector-result">
-              <strong>{azureStatus}</strong>
-              {azureSummary && <p>{azureSummary}</p>}
-              {azureAiAnswer && (
-                <div className="ai-answer">
-                  <span>Azure OpenAI analysis</span>
-                  <p>{azureAiAnswer}</p>
-                </div>
-              )}
-            </div>
-            <p className="connector-note">
-              API keys and client secrets should never be entered in this browser UI. If
-              APPLICATIONINSIGHTS_APP_ID and APPLICATIONINSIGHTS_API_KEY are set in .env, the local
-              backend queries Application Insights with that read key. Otherwise it falls back to
-              DefaultAzureCredential for Log Analytics.
-            </p>
-          </div>
-        )}
       </section>
 
       <section className="grid two" id="schema-discovery">
