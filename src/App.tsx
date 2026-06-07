@@ -158,6 +158,29 @@ function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`
 }
 
+function describeField(fieldName: string) {
+  const normalized = fieldName.toLowerCase()
+
+  if (normalized.includes('time')) return 'Timestamp or time-bucket field used for trend and incident-window analysis.'
+  if (normalized.includes('duration')) return 'Latency/duration field useful for slow request and dependency analysis.'
+  if (normalized.includes('success')) return 'Boolean health signal used to separate successful and failed telemetry.'
+  if (normalized.includes('result') || normalized.includes('status') || normalized.includes('code')) {
+    return 'Outcome/status field useful for grouping errors and response codes.'
+  }
+  if (normalized.includes('operation') || normalized === 'name') {
+    return 'Operation or event name field used to identify APIs, dependencies, traces, or custom events.'
+  }
+  if (normalized.includes('custom') || normalized.includes('propert')) {
+    return 'Container for custom application/business dimensions emitted with telemetry.'
+  }
+  if (normalized.includes('cloud') || normalized.includes('role')) {
+    return 'Cloud role or component identity field useful for service ownership and topology.'
+  }
+  if (normalized.includes('id')) return 'Identifier/correlation field useful for joining telemetry across a request flow.'
+
+  return 'Telemetry field discovered on the selected table. Use it in KQL filters, summaries, or joins as needed.'
+}
+
 function BreakdownTable({ rows }: { rows: BreakdownRow[] }) {
   return (
     <div className="breakdown-table">
@@ -233,12 +256,29 @@ function App() {
   const analysis = useMemo(() => analyzeTelemetry(sampleTelemetry, question), [question])
   const copilotAnswer = copilotResponses[activeQuestion]
   const selectedTable = schema.tables.find((table) => table.name === selectedTableName) ?? schema.tables[0]
-  const selectedDimension =
-    schema.customDimensions.find((dimension) => dimension.key === selectedDimensionKey) ??
-    schema.customDimensions[0]
+  const fieldInterpretations =
+    selectedTable?.columns.map((column) => {
+      const matchedDimension = schema.customDimensions.find((dimension) => dimension.key === column)
+
+      return {
+        key: column,
+        likelyMeaning: matchedDimension?.likelyMeaning ?? describeField(column),
+        examples: matchedDimension?.examples ?? [],
+      }
+    }) ?? []
+  const selectedField =
+    fieldInterpretations.find((field) => field.key === selectedDimensionKey) ?? fieldInterpretations[0]
 
   function chooseQuestion(nextQuestion: DemoQuestion) {
     setQuestion(nextQuestion)
+  }
+
+  function selectTable(tableName: string, firstColumn?: string) {
+    setSelectedTableName(tableName)
+
+    if (firstColumn) {
+      setSelectedDimensionKey(firstColumn)
+    }
   }
 
   function askCopilot() {
@@ -638,7 +678,7 @@ function App() {
                 key={table.name}
                 type="button"
                 className={`table-pill discovery-card ${selectedTable?.name === table.name ? 'selected' : ''}`}
-                onClick={() => setSelectedTableName(table.name)}
+                onClick={() => selectTable(table.name, table.columns[0])}
               >
                 <strong>{table.name}</strong>
                 <span>{table.records} records</span>
@@ -661,35 +701,35 @@ function App() {
         </article>
 
         <article className="panel">
-          <p className="eyebrow">Custom dimensions</p>
+          <p className="eyebrow">Selected table fields</p>
           <h2>AI field interpreter</h2>
           <p className="section-copy">
-            Custom dimensions are where business meaning often hides. Select a field to see what
-            Telemetry Copilot inferred from the values.
+            Select a table on the telemetry map. This panel shows only fields from that table and
+            explains how each field can help analysis.
           </p>
           <div className="dimension-list">
-            {schema.customDimensions.map((dimension) => (
+            {fieldInterpretations.map((field) => (
               <button
-                key={dimension.key}
+                key={field.key}
                 type="button"
                 className={`dimension-card discovery-card ${
-                  selectedDimension?.key === dimension.key ? 'selected' : ''
+                  selectedField?.key === field.key ? 'selected' : ''
                 }`}
-                onClick={() => setSelectedDimensionKey(dimension.key)}
+                onClick={() => setSelectedDimensionKey(field.key)}
               >
-                <strong>{dimension.key}</strong>
-                <p>{dimension.likelyMeaning}</p>
-                <small>{dimension.examples.join(' · ')}</small>
+                <strong>{field.key}</strong>
+                <p>{field.likelyMeaning}</p>
+                <small>{field.examples.length ? field.examples.join(' · ') : selectedTable?.name}</small>
               </button>
             ))}
           </div>
-          {selectedDimension && (
+          {selectedField && (
             <div className="discovery-detail">
-              <span>Selected custom dimension</span>
-              <strong>{selectedDimension.key}</strong>
-              <p>{selectedDimension.likelyMeaning}</p>
+              <span>Selected field from {selectedTable?.name}</span>
+              <strong>{selectedField.key}</strong>
+              <p>{selectedField.likelyMeaning}</p>
               <div className="field-chips">
-                {selectedDimension.examples.map((example) => (
+                {(selectedField.examples.length ? selectedField.examples : ['No examples sampled yet']).map((example) => (
                   <small key={example}>{example}</small>
                 ))}
               </div>
