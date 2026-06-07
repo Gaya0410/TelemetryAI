@@ -312,6 +312,16 @@ h3 {
   margin: 0;
 }
 
+.context-card small {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  color: #e0f2fe;
+  display: inline-flex;
+  font-weight: 800;
+  justify-self: start;
+  padding: 6px 10px;
+}
+
 .suggested-card {
   background: #eff6ff;
   border: 1px solid #bfdbfe;
@@ -581,11 +591,23 @@ select {
   width: 100%;
 }
 
+.data-source-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.source-choice-card {
+  display: grid;
+  gap: 22px;
+}
+
 .source-tabs {
+  border-top: 1px solid #dbeafe;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 16px;
+  justify-content: flex-end;
+  padding-top: 18px;
 }
 
 button.active {

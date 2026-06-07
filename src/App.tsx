@@ -30,6 +30,37 @@ type CopilotResponse = {
   findings: string[]
 }
 
+type UiSchemaSummary = {
+  summary?: string
+  tables: Array<{
+    name: string
+    records: number
+    columns: string[]
+  }>
+  customDimensions: Array<{
+    key: string
+    examples: string[]
+    likelyMeaning: string
+  }>
+}
+
+type LiveCopilotResponse = Partial<CopilotResponse> & {
+  queryResult?: AzureTelemetryResult
+  error?: string
+}
+
+type LiveDiscoveryResponse = UiSchemaSummary & {
+  kql?: string
+  queryResult?: AzureTelemetryResult
+  error?: string
+}
+
+type AzureTelemetryResult = {
+  status?: string
+  tables?: Array<{ name: string; rows: unknown[] }>
+  error?: string
+}
+
 const copilotResponses: Record<DemoQuestion, CopilotResponse> = {
   'What is wrong with my system?': {
     summary:
@@ -151,11 +182,35 @@ const incidentTimeline = [
   },
 ]
 
-const defaultAzureDiscoveryQuery = `union isfuzzy=true requests, dependencies, exceptions, traces, customEvents
-| take 100`
+const defaultAzureDiscoveryQuery = `union isfuzzy=true withsource=TelemetryTable
+  requests,
+  dependencies,
+  exceptions,
+  traces,
+  customEvents,
+  AppRequests,
+  AppDependencies,
+  AppExceptions,
+  AppTraces,
+  AppEvents
+| take 1000`
 
 function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`
+}
+
+async function readJsonResponse<T>(response: Response): Promise<T> {
+  const content = await response.text()
+
+  try {
+    return JSON.parse(content) as T
+  } catch {
+    throw new Error(`API returned non-JSON response (${response.status}): ${content.slice(0, 120)}`)
+  }
+}
+
+function uniqueValues(values: string[]) {
+  return [...new Set(values)].sort()
 }
 
 function describeField(fieldName: string) {
@@ -245,17 +300,28 @@ function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [connectionMode, setConnectionMode] = useState<'sample' | 'azure'>('sample')
   const [workspaceId, setWorkspaceId] = useState('')
-  const [timeRange, setTimeRange] = useState<'1h' | '24h' | '7d'>('24h')
+  const [timeRange, setTimeRange] = useState<'1h' | '12h' | '24h' | '7d'>('12h')
   const [azureQuery, setAzureQuery] = useState(defaultAzureDiscoveryQuery)
   const [azureStatus, setAzureStatus] = useState('Azure connector is ready to test.')
   const [azureSummary, setAzureSummary] = useState('')
   const [azureAiAnswer, setAzureAiAnswer] = useState('')
+  const [azureTelemetryResult, setAzureTelemetryResult] = useState<AzureTelemetryResult | null>(null)
+  const [liveCopilotAnswer, setLiveCopilotAnswer] = useState<CopilotResponse | null>(null)
+  const [liveSchema, setLiveSchema] = useState<UiSchemaSummary | null>(null)
   const [selectedTableName, setSelectedTableName] = useState('requests')
   const [selectedDimensionKey, setSelectedDimensionKey] = useState('buildVersion')
-  const schema = useMemo(() => discoverSchema(sampleTelemetry), [])
+  const sampleSchema = useMemo(() => discoverSchema(sampleTelemetry), [])
+  const schema: UiSchemaSummary = connectionMode === 'azure' && liveSchema ? liveSchema : sampleSchema
   const analysis = useMemo(() => analyzeTelemetry(sampleTelemetry, question), [question])
-  const copilotAnswer = copilotResponses[activeQuestion]
+  const copilotAnswer = connectionMode === 'azure' && liveCopilotAnswer ? liveCopilotAnswer : copilotResponses[activeQuestion]
   const selectedTable = schema.tables.find((table) => table.name === selectedTableName) ?? schema.tables[0]
+  const isLiveAzureMode = connectionMode === 'azure' && Boolean(liveSchema)
+  const discoveredFieldCount = uniqueValues(schema.tables.flatMap((table) => table.columns)).length
+  const tableNamesSummary =
+    schema.tables
+      .slice(0, 5)
+      .map((table) => table.name)
+      .join(', ') || 'Run discovery to load live tables'
   const fieldInterpretations =
     selectedTable?.columns.map((column) => {
       const matchedDimension = schema.customDimensions.find((dimension) => dimension.key === column)
@@ -281,23 +347,35 @@ function App() {
     }
   }
 
-  function askCopilot() {
-    const normalizedQuestion = question.trim().toLowerCase()
-    const matchingQuestion = demoQuestions.find(
-      (demoQuestion) => demoQuestion.toLowerCase() === normalizedQuestion,
-    )
-    const nextQuestion = matchingQuestion ?? (
-      normalizedQuestion.includes('error')
-        ? 'Why are errors increasing?'
-        : normalizedQuestion.includes('region') || normalizedQuestion.includes('user')
-          ? 'Which region is impacted?'
-          : normalizedQuestion.includes('slow') || normalizedQuestion.includes('latency')
-            ? 'Show slow APIs.'
-            : 'What is wrong with my system?'
-    )
+  async function askCopilot() {
+    const typedQuestion = question.trim()
+
+    if (!typedQuestion) {
+      return
+    }
+
+    const normalizedQuestion = typedQuestion.toLowerCase()
+    const matchingQuestion = demoQuestions.find((demoQuestion) => demoQuestion.toLowerCase() === normalizedQuestion)
+    const nextQuestion =
+      connectionMode === 'azure'
+        ? typedQuestion
+        : matchingQuestion ??
+          (normalizedQuestion.includes('error')
+            ? 'Why are errors increasing?'
+            : normalizedQuestion.includes('region') || normalizedQuestion.includes('user')
+              ? 'Which region is impacted?'
+              : normalizedQuestion.includes('slow') || normalizedQuestion.includes('latency')
+                ? 'Show slow APIs.'
+                : 'What is wrong with my system?')
 
     setQuestion(nextQuestion)
-    setActiveQuestion(nextQuestion)
+
+    if (connectionMode !== 'azure') {
+      setActiveQuestion(nextQuestion as DemoQuestion)
+    } else if (matchingQuestion) {
+      setActiveQuestion(matchingQuestion)
+    }
+
     setIsAnalyzing(true)
     setVisibleAnalysisSteps(0)
 
@@ -309,6 +387,71 @@ function App() {
         }
       }, 450 * (index + 1))
     })
+
+    if (connectionMode !== 'azure') {
+      return
+    }
+
+    setAzureStatus('Generating KQL, querying telemetry, then analyzing returned rows...')
+    setAzureSummary('')
+    setAzureAiAnswer('')
+
+    try {
+      const response = await fetch('/api/ai/copilot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: nextQuestion,
+          workspaceId,
+          timeRange,
+          telemetryResult: azureTelemetryResult,
+          telemetrySchema: liveSchema,
+          currentKql: azureQuery,
+        }),
+      })
+      const result = await readJsonResponse<LiveCopilotResponse>(response)
+
+      if (!response.ok || result.error) {
+        throw new Error(result.error ?? 'Azure OpenAI Copilot request failed.')
+      }
+
+      const executedKql = result.kql ?? azureQuery
+      const liveResult = result.queryResult ?? null
+      const rowCount = liveResult?.tables?.reduce((total, table) => total + table.rows.length, 0) ?? 0
+
+      setLiveCopilotAnswer({
+        summary: result.summary ?? 'Azure OpenAI returned a response without a summary.',
+        finding: result.finding ?? 'Live Azure finding',
+        rootCause: result.rootCause ?? 'Needs investigation',
+        evidence: result.evidence ?? 'See Azure telemetry evidence',
+        nextAction: result.nextAction ?? 'Review telemetry and validate next action',
+        kql: executedKql,
+        findings: Array.isArray(result.findings)
+          ? result.findings
+          : ['Azure OpenAI generated this response from the executed telemetry query.'],
+      })
+      setAzureQuery(executedKql)
+      setAzureTelemetryResult(liveResult)
+      setAzureStatus('Live Copilot query completed.')
+      setAzureSummary(`Executed generated KQL and returned ${rowCount} telemetry row(s).`)
+    } catch (error) {
+      setAzureStatus(error instanceof Error ? error.message : 'Unable to run the live Copilot telemetry query.')
+      setLiveCopilotAnswer({
+        summary:
+          error instanceof Error
+            ? error.message
+            : 'Unable to generate a live Azure OpenAI answer.',
+        finding: 'Live Copilot unavailable',
+        rootCause: 'Azure OpenAI is not configured or unreachable',
+        evidence: 'Check .env values and backend logs',
+        nextAction: 'Configure Azure OpenAI in .env and restart npm run dev:full',
+        kql: azureQuery,
+        findings: [
+          'Sample mode still works with deterministic demo answers.',
+          'Live Azure mode requires backend, Azure OpenAI configuration, and either App Insights API key auth or Log Analytics access.',
+        ],
+      })
+    }
   }
 
   async function testBackend() {
@@ -321,6 +464,8 @@ function App() {
       const result = (await response.json()) as {
         ok?: boolean
         azureOpenAIConfigured?: boolean
+        applicationInsightsConfigured?: boolean
+        telemetryAuthMode?: string
         error?: string
       }
 
@@ -331,7 +476,7 @@ function App() {
       setAzureStatus(
         `API online. Azure OpenAI is ${
           result.azureOpenAIConfigured ? 'configured' : 'not configured yet'
-        }.`,
+        }. Telemetry auth: ${result.telemetryAuthMode ?? 'not detected'}.`,
       )
     } catch (error) {
       setAzureStatus(
@@ -343,12 +488,7 @@ function App() {
   }
 
   async function queryAzureTelemetry() {
-    if (!workspaceId.trim()) {
-      setAzureStatus('Enter a Log Analytics Workspace ID before querying Azure telemetry.')
-      return
-    }
-
-    setAzureStatus('Querying Azure Monitor...')
+    setAzureStatus('Querying telemetry...')
     setAzureSummary('')
     setAzureAiAnswer('')
 
@@ -373,8 +513,9 @@ function App() {
       }
 
       const rowCount = result.tables?.reduce((total, table) => total + table.rows.length, 0) ?? 0
-      setAzureSummary(`Azure Monitor returned ${rowCount} rows from ${result.tables?.length ?? 0} table(s).`)
-      setAzureStatus('Azure telemetry query completed.')
+      setAzureTelemetryResult(result)
+      setAzureSummary(`Telemetry query returned ${rowCount} rows from ${result.tables?.length ?? 0} table(s).`)
+      setAzureStatus('Telemetry query completed.')
 
       const aiResponse = await fetch('/api/ai/analyze', {
         method: 'POST',
@@ -396,6 +537,54 @@ function App() {
     }
   }
 
+  async function discoverAzureTelemetry() {
+    setAzureStatus('Discovering live Azure schema with Azure OpenAI...')
+    setAzureSummary('')
+    setAzureAiAnswer('')
+
+    try {
+      const response = await fetch('/api/ai/discovery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workspaceId,
+          timeRange,
+          discoveryKql: azureQuery,
+        }),
+      })
+      const result = (await response.json()) as LiveDiscoveryResponse
+
+      if (!response.ok || result.error) {
+        throw new Error(result.error ?? 'Azure telemetry discovery failed.')
+      }
+
+      setLiveSchema({
+        summary: result.summary,
+        tables: result.tables ?? [],
+        customDimensions: result.customDimensions ?? [],
+      })
+      setAzureTelemetryResult(result.queryResult ?? null)
+
+      if (result.kql) {
+        setAzureQuery(result.kql)
+      }
+
+      if (result.tables?.[0]) {
+        setSelectedTableName(result.tables[0].name)
+        setSelectedDimensionKey(result.tables[0].columns[0] ?? '')
+      }
+
+      setAzureStatus('Live Azure discovery completed.')
+      setAzureSummary(
+        `Discovered ${result.tables?.length ?? 0} table(s) and ${
+          result.customDimensions?.length ?? 0
+        } custom dimension(s). Tables/columns come from metadata when available; custom dimensions are sampled from recent telemetry rows.`,
+      )
+    } catch (error) {
+      setAzureStatus(error instanceof Error ? error.message : 'Unable to discover live Azure telemetry schema.')
+    }
+  }
+
   return (
     <main className="app-shell">
       <section className="hero-panel">
@@ -414,9 +603,17 @@ function App() {
         </div>
         <div className="hero-card">
           <span className="status-dot"></span>
-          Unknown telemetry made usable
-          <strong>{sampleTelemetry.length} Azure-style telemetry records</strong>
-          <p>Schema, custom dimensions, KQL, charts, and RCA generated from synthetic telemetry.</p>
+          {isLiveAzureMode ? 'Live telemetry discovered' : 'Unknown telemetry made usable'}
+          <strong>
+            {isLiveAzureMode
+              ? `${schema.tables.length} live telemetry tables`
+              : `${sampleTelemetry.length} Azure-style telemetry records`}
+          </strong>
+          <p>
+            {isLiveAzureMode
+              ? `${discoveredFieldCount} fields and ${schema.customDimensions.length} custom dimensions discovered from the connected telemetry source.`
+              : 'Schema, custom dimensions, KQL, charts, and RCA generated from synthetic telemetry.'}
+          </p>
         </div>
       </section>
 
@@ -424,17 +621,25 @@ function App() {
         <article className="metric-card">
           <span>Discovered tables</span>
           <strong>{schema.tables.length}</strong>
-          <p>requests, dependencies, traces, exceptions, custom events</p>
+          <p>{isLiveAzureMode ? tableNamesSummary : 'requests, dependencies, traces, exceptions, custom events'}</p>
         </article>
         <article className="metric-card">
-          <span>Custom dimensions</span>
-          <strong>{schema.customDimensions.length}</strong>
-          <p>region, tenantId, buildVersion, featureFlag, provider, and more</p>
+          <span>{isLiveAzureMode ? 'Discovered fields' : 'Custom dimensions'}</span>
+          <strong>{isLiveAzureMode ? discoveredFieldCount : schema.customDimensions.length}</strong>
+          <p>
+            {isLiveAzureMode
+              ? `${schema.customDimensions.length} custom dimensions interpreted from recent telemetry.`
+              : 'region, tenantId, buildVersion, featureFlag, provider, and more'}
+          </p>
         </article>
         <article className="metric-card">
-          <span>Primary signal</span>
-          <strong>ProviderB</strong>
-          <p>Timeout failures correlated with build 2026.06.01.4</p>
+          <span>{isLiveAzureMode ? 'Live analysis' : 'Primary signal'}</span>
+          <strong>{isLiveAzureMode ? liveCopilotAnswer?.finding ?? 'Ready for RCA' : 'ProviderB'}</strong>
+          <p>
+            {isLiveAzureMode
+              ? liveCopilotAnswer?.evidence ?? 'Ask Copilot to detect incidents, evidence, and RCA from live telemetry.'
+              : 'Timeout failures correlated with build 2026.06.01.4'}
+          </p>
         </article>
       </section>
 
@@ -470,8 +675,17 @@ function App() {
           </div>
           <div className="context-card">
             <span>Context understood</span>
-            <strong>{schema.tables.length} tables · {schema.customDimensions.length} custom dimensions</strong>
-            <p>Incident window: 2:05 PM - 2:15 PM · Primary signal: ProviderB timeout</p>
+            <strong>
+              {schema.tables.length} tables · {discoveredFieldCount} fields · {schema.customDimensions.length} custom dimensions
+            </strong>
+            <p>
+              {isLiveAzureMode
+                ? `Selected table: ${selectedTable?.name ?? 'none'} · ${selectedTable?.columns.length ?? 0} fields`
+                : 'Incident window: 2:05 PM - 2:15 PM · Primary signal: ProviderB timeout'}
+            </p>
+            <small>
+              Mode: {connectionMode === 'azure' ? 'Local Azure OpenAI / QA telemetry' : 'Public demo / synthetic data'}
+            </small>
           </div>
         </div>
 
@@ -565,103 +779,104 @@ function App() {
         </div>
       </section>
 
-      <section className="panel" id="data-source">
-        <p className="eyebrow">Data source</p>
-        <h2>Connect telemetry or use the sample incident</h2>
-        <p className="section-copy">
-          Use the sample data for an instant walkthrough, or provide Azure Monitor / Application
-          Insights details when the secure backend connector is enabled.
-        </p>
-        <div className="source-tabs">
-          <button
-            type="button"
-            className={connectionMode === 'sample' ? 'active' : ''}
-            onClick={() => setConnectionMode('sample')}
-          >
-            Sample telemetry
-          </button>
-          <button
-            type="button"
-            className={connectionMode === 'azure' ? 'active' : ''}
-            onClick={() => setConnectionMode('azure')}
-          >
-            Azure telemetry
-          </button>
+      <section className="panel data-source-panel" id="data-source">
+        <div className="source-choice-card">
+          <div>
+            <p className="eyebrow">Data source</p>
+            <h2>Choose where Telemetry Copilot should read from</h2>
+            <p className="section-copy">
+              Start with the guided sample incident, or connect Azure Monitor / Application Insights when
+              the secure backend connector is enabled.
+            </p>
+          </div>
+          <div className="source-tabs" aria-label="Choose data source">
+            <button
+              type="button"
+              className={connectionMode === 'sample' ? 'active' : ''}
+              aria-pressed={connectionMode === 'sample'}
+              onClick={() => setConnectionMode('sample')}
+            >
+              Sample telemetry
+            </button>
+            <button
+              type="button"
+              className={connectionMode === 'azure' ? 'active' : ''}
+              aria-pressed={connectionMode === 'azure'}
+              onClick={() => setConnectionMode('azure')}
+            >
+              Azure telemetry
+            </button>
+          </div>
         </div>
-        <div className="connector-card">
-          {connectionMode === 'sample' ? (
-            <>
-              <strong>Sample Application Insights dataset is active</strong>
-              <p>
-                The current analysis uses synthetic requests, dependencies, traces, exceptions, and
-                custom events so the product can be demonstrated without exposing real customer data.
-              </p>
-            </>
-          ) : (
-            <>
-              <div className="connector-form">
-                <label>
-                  Log Analytics Workspace ID
-                  <input
-                    value={workspaceId}
-                    onChange={(event) => setWorkspaceId(event.target.value)}
-                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                  />
-                </label>
-                <label>
-                  Application Insights App ID
-                  <input placeholder="Optional app id for future classic App Insights support" />
-                </label>
-                <label>
-                  Time range
-                  <select value={timeRange} onChange={(event) => setTimeRange(event.target.value as typeof timeRange)}>
-                    <option value="1h">Last 1 hour</option>
-                    <option value="24h">Last 24 hours</option>
-                    <option value="7d">Last 7 days</option>
-                  </select>
-                </label>
-                <label>
-                  Authentication
-                  <select defaultValue="managed-identity">
-                    <option value="managed-identity">Managed identity</option>
-                    <option value="entra">Microsoft Entra ID</option>
-                  </select>
-                </label>
-              </div>
-              <label className="question-input azure-query-input">
-                Discovery KQL
-                <textarea
-                  value={azureQuery}
-                  onChange={(event) => setAzureQuery(event.target.value)}
-                  rows={4}
+        {connectionMode === 'azure' && (
+          <div className="connector-card">
+            <div className="connector-form">
+              <label>
+                Log Analytics Workspace ID
+                <input
+                  value={workspaceId}
+                  onChange={(event) => setWorkspaceId(event.target.value)}
+                  placeholder="Optional if APPLICATIONINSIGHTS_APP_ID/API_KEY are in .env"
                 />
               </label>
-              <div className="connector-actions">
-                <button type="button" onClick={testBackend}>
-                  Test backend
-                </button>
-                <button type="button" className="primary-action" onClick={queryAzureTelemetry}>
-                  Query Azure telemetry
-                </button>
-              </div>
-              <div className="connector-result">
-                <strong>{azureStatus}</strong>
-                {azureSummary && <p>{azureSummary}</p>}
-                {azureAiAnswer && (
-                  <div className="ai-answer">
-                    <span>Azure OpenAI analysis</span>
-                    <p>{azureAiAnswer}</p>
-                  </div>
-                )}
-              </div>
-              <p className="connector-note">
-                API keys and client secrets should never be entered in this browser UI. The next
-                implementation step is a secure backend API that uses managed identity to query Azure
-                Monitor and returns only approved telemetry results to this page.
-              </p>
-            </>
-          )}
-        </div>
+              <label>
+                Application Insights App ID
+                <input placeholder="Configured in backend .env, not entered in browser" disabled />
+              </label>
+              <label>
+                Time range
+                <select value={timeRange} onChange={(event) => setTimeRange(event.target.value as typeof timeRange)}>
+                  <option value="1h">Last 1 hour</option>
+                  <option value="12h">Last 12 hours</option>
+                  <option value="24h">Last 24 hours</option>
+                  <option value="7d">Last 7 days</option>
+                </select>
+              </label>
+              <label>
+                Authentication
+                <select defaultValue="app-insights-api-key">
+                  <option value="app-insights-api-key">Application Insights API key from .env</option>
+                  <option value="managed-identity">DefaultAzureCredential / az login</option>
+                </select>
+              </label>
+            </div>
+            <label className="question-input azure-query-input">
+              Discovery KQL
+              <textarea
+                value={azureQuery}
+                onChange={(event) => setAzureQuery(event.target.value)}
+                rows={4}
+              />
+            </label>
+            <div className="connector-actions">
+              <button type="button" onClick={testBackend}>
+                Test backend
+              </button>
+              <button type="button" onClick={discoverAzureTelemetry}>
+                Discover schema
+              </button>
+              <button type="button" className="primary-action" onClick={queryAzureTelemetry}>
+                Query Azure telemetry
+              </button>
+            </div>
+            <div className="connector-result">
+              <strong>{azureStatus}</strong>
+              {azureSummary && <p>{azureSummary}</p>}
+              {azureAiAnswer && (
+                <div className="ai-answer">
+                  <span>Azure OpenAI analysis</span>
+                  <p>{azureAiAnswer}</p>
+                </div>
+              )}
+            </div>
+            <p className="connector-note">
+              API keys and client secrets should never be entered in this browser UI. If
+              APPLICATIONINSIGHTS_APP_ID and APPLICATIONINSIGHTS_API_KEY are set in .env, the local
+              backend queries Application Insights with that read key. Otherwise it falls back to
+              DefaultAzureCredential for Log Analytics.
+            </p>
+          </div>
+        )}
       </section>
 
       <section className="grid two" id="schema-discovery">
@@ -672,6 +887,9 @@ function App() {
             Telemetry Copilot inspects unknown telemetry and reveals the tables, fields, and useful
             dimensions. Select any discovered table to inspect the schema.
           </p>
+          {connectionMode === 'azure' && liveSchema?.summary && (
+            <p className="section-copy">{liveSchema.summary}</p>
+          )}
           <div className="table-list">
             {schema.tables.map((table) => (
               <button
