@@ -526,27 +526,6 @@ h3 {
   text-decoration: none;
 }
 
-.demo-steps {
-  display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.demo-steps a {
-  background: #f8fafc;
-  border: 1px solid #dbeafe;
-  border-radius: 18px;
-  display: grid;
-  gap: 8px;
-  padding: 16px;
-  text-decoration: none;
-}
-
-.demo-steps strong {
-  color: #1d4ed8;
-}
-
-.demo-steps span,
 .section-copy {
   color: #64748b;
   font-size: 0.94rem;
@@ -1212,7 +1191,6 @@ ol {
   .rca-header,
   .rca-story-grid,
   .signal-grid,
-  .demo-steps,
   .insight-list,
   .breakdown-grid,
   .connector-form,

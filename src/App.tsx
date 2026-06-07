@@ -624,29 +624,6 @@ function App() {
         </div>
       </section>
 
-      <section className="panel">
-        <p className="eyebrow">Product flow</p>
-        <h2>Analyze telemetry in four steps</h2>
-        <div className="demo-steps">
-          <a href="#schema-discovery">
-            <strong>1. Schema discovery</strong>
-            <span>See discovered tables, columns, and custom dimensions.</span>
-          </a>
-          <a href="#nl-kql">
-            <strong>2. Natural language to KQL</strong>
-            <span>Pick a suggested question, ask Copilot, and inspect generated KQL.</span>
-          </a>
-          <a href="#breakdowns">
-            <strong>3. User/time insights</strong>
-            <span>Compare tenant, region, build, and time-window failure patterns.</span>
-          </a>
-          <a href="#rca">
-            <strong>4. RCA report</strong>
-            <span>Review impact, evidence, likely cause, and recommended actions.</span>
-          </a>
-        </div>
-      </section>
-
       <section className="grid two" id="schema-discovery">
         <article className="panel">
           <p className="eyebrow">Auto-discovery</p>
